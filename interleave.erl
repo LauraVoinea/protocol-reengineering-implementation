@@ -39,7 +39,7 @@ e3() -> {branch, [{l, {require, n, endP}} ,{r, {act, c, endP}}, {m, {assert, n, 
 
 sa() -> {act, r_pwd, {branch, [{ok, {assert, n, endP}},{fail, endP}]}}.
 sb() -> {require, n, {act, do_banking, endP}}.
-                      
+
 
 
 bank() -> {require, pin, {rec, t, {branch, [{payment, {act, s_sdata, {consume, tan, {rvar, t}}}},
@@ -48,11 +48,11 @@ bank() -> {require, pin, {rec, t, {branch, [{payment, {act, s_sdata, {consume, t
                                 }
                         }
         }.
-          
+
 pintan() -> {act, r_pin, {branch, [{ok, {assert, pin, {rec, r, {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
                                                                                               {fail, {rvar, r}}]
                                                                                     }
-                                                                                  
+
                                                                       }
                                                             }
                                                   }
@@ -62,11 +62,11 @@ pintan() -> {act, r_pin, {branch, [{ok, {assert, pin, {rec, r, {act, s_id, {act,
                               {logout, endP}]
                       }
         }.
-                  
-                  
-                  
-                  
-                  
+
+
+
+
+
 
 
 
@@ -115,7 +115,6 @@ subst({consume, N, P}, BV1, BV2, A) ->
 
 subst({branch, LiSi}, BV1, BV2, A) ->
   {branch, for(LiSi, fun({Li, Si}) -> {Li, subst(Si, BV1, BV2, A)} end)};
-  
 
 subst({rec, BV3, P}, BV1, BV2, A) ->
   case lists:member(BV1, A) of
@@ -134,8 +133,6 @@ subst({rvar, BV3}, _, _, _) ->
 
 subst(endP, _ , _ , _ ) ->
   endP.
-
-
 
 
 % ## Auxiliary printers
@@ -157,13 +154,12 @@ asserted(A, {rvar, _}) -> A;
 asserted(A, {act, _, P}) -> asserted(A, P);
 
 asserted(A, {branch, LiSi}) ->
-    Abranches = for(LiSi ,
-      fun({_,Si}) -> asserted(A, Si) end),
-    case listAsserted(Abranches) of
-      true -> listIntersect(Abranches);
-      false -> 'illAsserted'
-    end;
-    
+  Abranches = for(LiSi, fun({_,Si}) -> asserted(A, Si) end),
+  case listAsserted(Abranches) of
+    true -> listIntersect(Abranches);
+    false -> 'illAsserted'
+  end;
+
 asserted(A, {require, N, P}) ->
   case lists:member(N, A) of
     true -> asserted(A, P);
@@ -183,34 +179,33 @@ asserted(A, {assert, N, P}) ->
   end;
 
 asserted(A, {rec, _, P}) ->
-    case asserted(A, P) of
-      illAsserted -> illAsserted;
-      B -> lists:usort(B ++ A)
-    end.
-
-
+  case asserted(A, P) of
+    illAsserted -> illAsserted;
+    B -> lists:usort(B ++ A)
+  end.
 
 wellAsserted(A, PS) ->
   case asserted(A, PS) of
     illAsserted -> false;
     _           -> true
   end.
-  
 
-
-
+% ## Helper functions for assertedness
 listAsserted([A|Alist]) ->
   case A of
     illAsserted -> false;
     _ -> listAsserted(Alist)
   end;
-  
+
 listAsserted([]) -> true.
 
-listIntersect(A) -> 
+listIntersect(A) ->
   sets:to_list(sets:intersection(for(A, fun(X) -> sets:from_list(X) end))).
-  
 
+
+% ## Helper functions of binders
+
+% Predicate on whether protocol P has all its free variables in environment N
 bound(P, N) ->
   case P of
     {act, _, R} -> bound(R,N);
@@ -233,9 +228,7 @@ bound(P, N) ->
 bind([], _F)    -> [];
 bind([X|XS], F) -> F(X) ++ bind(XS, F).
 
-
-
-
+% Basically just `flip map`
 -spec for([A], fun((A) -> B)) -> [B].
 for(XS, F) -> lists:map(F, XS).
 
@@ -280,7 +273,7 @@ interleaveWeakStrong(S1, S2) ->
 % n-way Cartesian product
 -spec nCartesian([[A]]) -> [[A]].
 nCartesian([]) -> [];
-% XS is one list, [XS] is the list of one list of lists 
+% XS is one list, [XS] is the list of one list of lists
 nCartesian([XS]) -> lists:map(fun (X) -> [X] end, XS);
 nCartesian([XS|XSS]) ->
   bind(XS, fun(X) -> bind(nCartesian(XSS), fun(YS) -> [[X|YS]] end) end).
@@ -354,7 +347,7 @@ interleaveMain(_, _, _, _, {branch, []}, _) -> errorEmptyBranch;
 
 % [branch]
 interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
-  Covering = 
+  Covering =
     case WeakFlag of
       % La is whole set
       strong -> [{LiSi, []}];
@@ -362,8 +355,8 @@ interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
       % Compute the two covering, of which the last has Ia = \emptyset so drop it
       _      -> lists:droplast(twoCovering(LiSi))
     end,
-  
-  Possibilities = for(Covering, 
+
+  Possibilities = for(Covering,
     fun ({Ia, Ib}) ->
     % Good parition if all Sb are well asserted
     case lists:all(fun ({_, Sib}) -> wellAsserted(A, Sib) end, Ib) of
@@ -390,7 +383,7 @@ interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
     weakStrong -> maximalPossibility(Possibilities)
   end;
 
-% [rec1] 
+% [rec1]
 interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
   % Top(S1) not a recursion
   case S1 of
@@ -405,36 +398,28 @@ interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
             end)
   end;
 
-   
 
  % [rec3]
-  interleaveMain(_, _, _, A, {rec, BV1, S1}, endP) ->
-    case wellAsserted(A, {rec, BV1, S1}) and bound({rec, BV1, S1},[]) of
-      true -> [{rec, BV1, S1}];
-      false -> []
-    end;
-    
+interleaveMain(_, _, _, A, {rec, BV1, S1}, endP) ->
+  case wellAsserted(A, {rec, BV1, S1}) and bound({rec, BV1, S1},[]) of
+    true -> [{rec, BV1, S1}];
+    false -> []
+  end;
+
  % [rec2]
-  interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, S2) ->
+interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, S2) ->
   case S1 of
+    % TOP check
     {rec, _, _} -> [];
     _ -> lists:append(for(TR, fun(S)-> interleaveTop(WeakFlag, TL, TR, A, subst(S1, BV1, S, []), S2) end))
   end;
 
-
-% [call] 
+% [call]
 interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
-   case lists:member(BV1, TL) or lists:member(BV1, TR) of
+  case lists:member(BV1, TL) or lists:member(BV1, TR) of
     true -> [{rvar, BV1}];
     false -> []
   end;
 
-
-
-  %check top and well assertedness
-interleaveMain(_, _, _, _, _, _) ->
-[].
-
-%merge([{branch, {P, S}}], [{branch, {Q, T}}]) ->
-%bind([{branch, {P, S}}]
-%end);
+% failure case
+interleaveMain(_, _, _, _, _, _) -> [].
