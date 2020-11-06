@@ -40,41 +40,16 @@ e3() -> {branch, [{l, {require, n, endP}} ,{r, {act, c, endP}}, {m, {assert, n, 
 sa() -> {act, r_pwd, {branch, [{ok, {assert, n, endP}},{fail, endP}]}}.
 sb() -> {require, n, {act, do_banking, endP}}.
                       
-bank() -> {require, pin, {rec, t, bank1()}}.
-bank1() -> {branch, [
-                      {r_statement, {act, s_statement, {rvar, t}}},
-                      {r_payment, {require, tan, {act, r_details, {consume, tan, {rvar, t}}}}}
-%                      {r_logout, {consume, pin, endP}}
-                    ]
-            }.
 
 
-pintan() -> {act, r_pin, {branch, [
-                                    {s_ok,  {assert, pin, pintan1()}},
-                                    {s_fail, endP}
-                                  ]
-                        }
-            }.
-
-pintan1() -> {rec, r,{ branch , [{tan, {act, s_id, {act, r_tan, {rvar, r}}}},{nothing, {rvar, r}} ]}}.
-
-
-pintan2() -> {branch, [
-                        {s_ok, {assert, tan, {rvar, r}}},
-                        {s_fail, {rvar, r}}
-                      ]
-              }.
-
-
-
-bp() -> {require, pin, {rec, t, {branch, [{payment, {act, s_sdata, {consume, tan, {rvar, t}}}},
+bank() -> {require, pin, {rec, t, {branch, [{payment, {act, s_sdata, {consume, tan, {rvar, t}}}},
                                           {statement, {act, r_pdata, {rvar, t}}},
                                           {logout, endP}]
                                 }
                         }
         }.
           
-pt() -> {act, r_pin, {branch, [{ok, {assert, pin, {rec, r, {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
+pintan() -> {act, r_pin, {branch, [{ok, {assert, pin, {rec, r, {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
                                                                                               {fail, {rvar, r}}]
                                                                                     }
                                                                                   
