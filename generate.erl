@@ -9,18 +9,18 @@ tofsm(P) -> tofsm(P, orddict:new(), orddict:new(), 0).
 tofsm({act, Act, P}, S, RecMap, Id) ->
     Fsm = #fsm{name = "state" ++ integer_to_list(Id),
                actions = "act " ++ atom_to_list(Act),
-               nextState = Id + 1},
+               nextState = [Id + 1]},
     S1 = orddict:store(Id, Fsm, S),
     tofsm(P, S1, RecMap, Id + 1);
 tofsm({branch, Branches}, S, RecMap, Id) ->
-    {L, O, RecMap, Id} = lists:foldl(fun ({A, P}, Labels) ->
+  L = lists:foldl(fun ({A, P}, Labels) ->
                                   Labels ++ " " ++ atom_to_list(A)
                                   % tofsm(P, S, RecMap, Id)
                           end,
                           "",
                           Branches),
-    Fsm = #fsm{name = "choice" ++ integer_to_list(Id),
-               actions = "branch " ++ L , nextState = Id + 1},
+    Fsm = #fsm{name = "state" ++ integer_to_list(Id),
+               actions = "branch " ++ L , nextState = [Id + 1]},
     S1 = orddict:store(Id, Fsm, S),
     tofsmBranches(Branches, S1, RecMap, Id + 1);
 tofsm({rec, BoundVar, P}, S, RecMap, Id) ->
@@ -32,14 +32,14 @@ tofsm({rvar, Var}, S, RecMap, Id) ->
                        fun (Old) ->
                                Old#fsm{name = Old#fsm.name,
                                        actions = Old#fsm.actions,
-                                       nextState = NextState}
+                                       nextState = [NextState]}
                        end,
                        orddict:fetch(Id - 1, S),
                        S),
     {O, RecMap, Id};
 tofsm(endP, S, RecMap, Id) ->
     {orddict:store(Id,
-                   #fsm{name = "endP", actions = "end", nextState = Id},
+                   #fsm{name = "endP", actions = "end", nextState = [Id]},
                    S),
      RecMap,
      Id};
@@ -98,11 +98,26 @@ pprintStop() ->
     "stop() -> \n \t gen_statem:stop(?NAME).\n".
 
 pprintState(V) ->
-    "% " ++
-        V#fsm.actions ++
-            "\n" ++
-                V#fsm.name ++
-                    "() -> \n" ++
-                        "%.. code for actions here ... \n" ++
-                            "\t {next_state, state" ++
-                                integer_to_list(V#fsm.nextState) ++ ", {}}. \n".
+    "% " ++  V#fsm.actions ++ "\n" ++
+    V#fsm.name ++"() -> \n" ++
+    "%.. code for actions here ... \n" ++
+    nextStates(V#fsm.nextState).
+
+nextStates(States) ->
+  Len = length(States),
+  if
+     Len > 1 ->
+      pprintNextStates(States);
+    Len =:= 1 ->
+      pprintNextState(States);
+    Len =:= 0 ->
+      pprintNextStop()
+    end.
+
+pprintNextState([State]) -> "\t {next_state, state" ++ integer_to_list(State) ++ ", {}}. \n".
+
+pprintNextStop() -> "\t {next_state, stop, {}}. \n".
+
+pprintNextStates([]) -> "";
+pprintNextStates([N]) -> "\t {next_state, state" ++ integer_to_list(N) ++ ", {}}; \n";
+pprintNextStates([N|NS]) -> pprintNextStates(N) ++ pprintNextStates(N).
