@@ -1,6 +1,7 @@
 -module(generate).
 
 -compile(export_all).
+-compile(nowarn_export_all).
 
 -record(fsm, {name, actions, nextState}).
 
@@ -13,7 +14,7 @@ tofsm({act, Act, P}, S, RecMap, Id) ->
     S1 = orddict:store(Id, Fsm, S),
     tofsm(P, S1, RecMap, Id + 1);
 tofsm({branch, Branches}, S, RecMap, Id) ->
-  L = lists:foldl(fun ({A, P}, Labels) ->
+  L = lists:foldl(fun ({A, _}, Labels) ->
                                   Labels ++ " " ++ atom_to_list(A)
                                   % tofsm(P, S, RecMap, Id)
                           end,
@@ -46,7 +47,7 @@ tofsm(endP, S, RecMap, Id) ->
 tofsm({_, _, P}, S, RecMap, Id) ->
     tofsm(P, S, RecMap, Id).
 
-tofsmBranch({Label, P}, S, RecMap, Id) ->
+tofsmBranch({_, P}, S, RecMap, Id) ->
     % S1 = orddict:store(Id, #fsm{name = Label}, S),
     tofsm(P, S, RecMap, Id).
 
@@ -120,4 +121,4 @@ pprintNextStop() -> "\t {next_state, stop, {}}. \n".
 
 pprintNextStates([]) -> "";
 pprintNextStates([N]) -> "\t {next_state, state" ++ integer_to_list(N) ++ ", {}}; \n";
-pprintNextStates([N|NS]) -> pprintNextStates(N) ++ pprintNextStates(N).
+pprintNextStates([N|_]) -> pprintNextStates(N) ++ pprintNextStates(N).

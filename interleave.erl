@@ -129,7 +129,7 @@ subst({rvar, BV1}, BV1, BV2, A) ->
     false -> {rvar, BV2}
   end;
 
-subst({rvar, BV3}, BV1, BV2, A) ->
+subst({rvar, BV3}, _, _, _) ->
   {rvar, BV3};
 
 subst(endP, _ , _ , _ ) ->
@@ -152,13 +152,13 @@ pprintBranches([B|BS]) -> pprintBranch(B) ++ "; " ++ pprintBranches(BS).
 
 asserted(A , endP) -> A;
 
-asserted(A, {rvar, Var}) -> A;
+asserted(A, {rvar, _}) -> A;
 
-asserted(A, {act, Act, P}) -> asserted(A, P);
+asserted(A, {act, _, P}) -> asserted(A, P);
 
 asserted(A, {branch, LiSi}) ->
     Abranches = for(LiSi ,
-      fun({Li,Si}) -> asserted(A, Si) end),
+      fun({_,Si}) -> asserted(A, Si) end),
     case listAsserted(Abranches) of
       true -> listIntersect(Abranches);
       false -> 'illAsserted'
@@ -182,7 +182,7 @@ asserted(A, {assert, N, P}) ->
     false -> asserted(A ++ [N], P)
   end;
 
-asserted(A, {rec, BV, P}) ->
+asserted(A, {rec, _, P}) ->
     case asserted(A, P) of
       illAsserted -> illAsserted;
       B -> lists:usort(B ++ A)
@@ -217,7 +217,7 @@ bound(P, N) ->
     {assert, _, R} -> bound(R,N);
     {require, _, R} -> bound(R,N);
     {consume, _, R} -> bound(R,N);
-    {branch, LiSi} -> lists:all(fun(X) -> X end, for(LiSi, fun({Li, Si})-> bound(Si,N) end) );
+    {branch, LiSi} -> lists:all(fun(X) -> X end, for(LiSi, fun({_, Si})-> bound(Si,N) end) );
     {rec, T, R} -> bound(R,N ++ [T]);
     {rvar, T} -> lists:member(T,N);
     endP -> true
@@ -304,7 +304,7 @@ interleaveTop(WeakFlag, TL, TR, A, S1, S2) ->
 -spec interleaveMain(atom(), [string()], [string()], [atom()], protocol(), protocol()) -> [protocol()].
 
 % [end] rule
-interleaveMain(WeakFlag, TL, TR, A, endP, endP) -> [endP];
+interleaveMain(_, _, _, _, endP, endP) -> [endP];
 
 % [act] rule
 interleaveMain(WeakFlag, TL, TR, A, {act, P, S1}, S2) ->
@@ -404,28 +404,26 @@ interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
                       end
             end)
   end;
-  
-  
-  % [rec2]
-  interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, S2) ->
-  case S1 of
-    {rec, _, _} -> [];
-    _ -> lists:append(for(TR, fun(S)-> interleaveTop(WeakFlag, TL, TR, A, subst(S1, BV1, S, []), S2) end))
-  end;
+
    
 
  % [rec3]
-  interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, endP) ->
+  interleaveMain(_, _, _, A, {rec, BV1, S1}, endP) ->
     case wellAsserted(A, {rec, BV1, S1}) and bound({rec, BV1, S1},[]) of
       true -> [{rec, BV1, S1}];
       false -> []
     end;
     
-    
+ % [rec2]
+  interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, S2) ->
+  case S1 of
+    {rec, _, _} -> [];
+    _ -> lists:append(for(TR, fun(S)-> interleaveTop(WeakFlag, TL, TR, A, subst(S1, BV1, S, []), S2) end))
+  end;
 
 
 % [call] 
-interleaveMain(WeakFlag, TL, TR , A, {rvar, BV1}, {rvar, BV1}) ->
+interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
    case lists:member(BV1, TL) or lists:member(BV1, TR) of
     true -> [{rvar, BV1}];
     false -> []
@@ -434,7 +432,7 @@ interleaveMain(WeakFlag, TL, TR , A, {rvar, BV1}, {rvar, BV1}) ->
 
 
   %check top and well assertedness
-interleaveMain(WeakFlag, TL, TR, A, S1, S2) ->
+interleaveMain(_, _, _, _, _, _) ->
 [].
 
 %merge([{branch, {P, S}}], [{branch, {Q, T}}]) ->
