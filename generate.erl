@@ -1,61 +1,80 @@
 -module(generate).
 
 -compile(export_all).
+-record(transition, {to, label}).
 
--record(fsm, {name, actions, nextState}).
 
-tofsm(P) -> tofsm(P, orddict:new(), orddict:new(), 0).
+standard_state() -> standard_state.
+choice_state() -> choice_state.
+end_state() -> end_state.
 
-tofsm({act, Act, P}, S, RecMap, Id) ->
-    Fsm = #fsm{name = "state" ++ integer_to_list(Id),
-               actions = "act " ++ atom_to_list(Act),
-               nextState = [Id + 1]},
-    S1 = orddict:store(Id, Fsm, S),
-    tofsm(P, S1, RecMap, Id + 1);
-tofsm({branch, Branches}, S, RecMap, Id) ->
-  L = lists:foldl(fun ({A, P}, Labels) ->
-                                  Labels ++ " " ++ atom_to_list(A)
-                                  % tofsm(P, S, RecMap, Id)
-                          end,
-                          "",
-                          Branches),
-    Fsm = #fsm{name = "state" ++ integer_to_list(Id),
-               actions = "branch " ++ L , nextState = [Id + 1]},
-    S1 = orddict:store(Id, Fsm, S),
-    tofsmBranches(Branches, S1, RecMap, Id + 1);
-tofsm({rec, BoundVar, P}, S, RecMap, Id) ->
-    RecMap1 = orddict:store(BoundVar, Id, RecMap),
-    tofsm(P, S, RecMap1, Id);
-tofsm({rvar, Var}, S, RecMap, Id) ->
-    {ok, NextState} = orddict:find(Var, RecMap),
-    O = orddict:update(Id - 1,
-                       fun (Old) ->
-                               Old#fsm{name = Old#fsm.name,
-                                       actions = Old#fsm.actions,
-                                       nextState = [NextState]}
-                       end,
-                       orddict:fetch(Id - 1, S),
-                       S),
-    {O, RecMap, Id};
-tofsm(endP, S, RecMap, Id) ->
-    {orddict:store(Id,
-                   #fsm{name = "endP", actions = "end", nextState = [Id]},
-                   S),
-     RecMap,
-     Id};
-tofsm({_, _, P}, S, RecMap, Id) ->
-    tofsm(P, S, RecMap, Id).
 
-tofsmBranch({Label, P}, S, RecMap, Id) ->
-    % S1 = orddict:store(Id, #fsm{name = Label}, S),
-    tofsm(P, S, RecMap, Id).
+add_transition(FromID, Transition, Transitions) ->
+    Values = maps:get(FromID, Transitions, []),
+    NewValues = Values ++ [Transition],
+    maps:put(FromID, NewValues, Transitions).
 
-tofsmBranches([], S, RecMap, Id) -> {S, RecMap, Id};
-tofsmBranches([P], S, RecMap, Id) ->
-    tofsmBranch(P, S, RecMap, Id);
-tofsmBranches([P | PS], S, RecMap, Id) ->
-    {S1, RecMap1, Id1} = tofsmBranch(P, S, RecMap, Id),
-    tofsmBranches(PS, S1, RecMap1, Id1).
+
+tofsm(P) -> tofsm(P, maps:new(), maps:new(), maps:new(), 0, -1, 0, "init").
+
+tofsm({act, Act, P}, S, T, RecMap, PrevIndex, EndIndex, _PrevVis, Label) ->
+    S1 = maps:put(PrevIndex + 1, standard_state(), S),
+    Index = PrevIndex + 1,
+    Transition = #transition{to = Index, label = Label},
+    T1 = add_transition(PrevIndex, Transition, T),
+    Label1 = "act " ++ atom_to_list(Act),
+    tofsm(P, S1, T1, RecMap, Index, EndIndex, Index, Label1);
+
+tofsm({branch, Branches}, S, T, RecMap, PrevIndex, EndIndex, _PrevVis, Label) ->
+    Index = PrevIndex + 1,
+    S1 = maps:put(Index, choice_state(), S),
+    Transition = #transition{to = Index, label = Label},
+    T1 = add_transition(PrevIndex, Transition, T),
+    tofsmBranches(Branches, S1, T1, RecMap, Index, EndIndex, Index);
+
+tofsm({rec, BoundVar, P}, S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label) ->
+    NewRecMap = maps:put(BoundVar, PrevIndex, RecMap),
+    tofsm(P, S, T, NewRecMap, PrevIndex, EndIndex, PrevVis, Label);
+
+tofsm({rvar, Var}, S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label) ->
+    {ok, NextStateIndex} = maps:find(Var, RecMap),
+    Transition = #transition{to = NextStateIndex, label = Label},
+    if
+      PrevVis =:=  PrevIndex ->
+        T1 = add_transition(PrevIndex, Transition, T);
+      true ->
+        T1 = add_transition(PrevVis, Transition, T)
+    end,
+    {S, T1, RecMap, PrevIndex, EndIndex, PrevVis, Label};
+
+tofsm(endP, S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label) ->
+    IsKey = maps:is_key(EndIndex, S),
+    if
+      IsKey ->
+        {S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label};
+      true -> Index = PrevIndex + 1,
+              Transition = #transition{to = Index, label = Label},
+              T1 = add_transition(PrevIndex, Transition, T),
+              {maps:put(Index, end_state(), S), T1, RecMap, Index, Index, Index, Label}
+    end;
+
+tofsm({_, _, P}, S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label) ->
+    tofsm(P, S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label).
+
+tofsmBranch({Label, P}, S, T, RecMap, PrevIndex, EndIndex, _PrevVis) ->
+    Label1 = "choice " ++ atom_to_list(Label),
+    Pred = fun(_,V) -> V =:= choice_state() end,
+    BrIndex = lists:last(maps:keys(maps:filter(Pred, S))),
+    tofsm(P, S, T, RecMap, PrevIndex, EndIndex, BrIndex, Label1).
+
+tofsmBranches([], S, T, RecMap, PrevIndex, EndIndex, PrevVis) ->
+  {S, T, RecMap, PrevIndex, EndIndex, PrevVis};
+tofsmBranches([P], S, T, RecMap, PrevIndex, EndIndex, PrevVis) ->
+    tofsmBranch(P, S, T, RecMap, PrevIndex, EndIndex, PrevVis);
+tofsmBranches([P | PS], S, T, RecMap, PrevIndex, EndIndex, PrevVis) ->
+    {NewStates, NewT, NewRecMap, NewPrevIndex, NewEndIndex, PrevVis1, _Label1} =
+      tofsmBranch(P, S, T, RecMap, PrevIndex, EndIndex, PrevVis),
+    tofsmBranches(PS, NewStates, NewT, NewRecMap, NewPrevIndex, NewEndIndex, PrevVis1).
 
 gen(File, P) ->
     {ok, IODevice} = file:open(File, [write]),
@@ -66,25 +85,23 @@ gen(File, P) ->
               "-behaviour(gen_statem). ~s",
               [LineSep]),
     io:format(IODevice,
-              "-define(NAME, ~s). ~s",
+              "-define(NAME, ~s). ~s~n",
               [Name, LineSep]),
 
     io:format(IODevice,
-              "~s ~n",
-              ["-export([start_link/1,stop/0]).\n"]),
-    io:format(IODevice, "~s ~n", ["-export([init/1]).\n"]),
-    % "branch " ++
-    %           lists:foldl(fun({A, _}, Labels) ->
-    %              Labels ++ " " ++ atom_to_list(A) end, "", Branches),
-    {Od, _, _} = tofsm(P),
-    D = orddict:to_list(Od),
-    % {K, V} = hd(D),
-    io:format(IODevice, "~s ~n", [pprintStart()]),
-    lists:foreach(fun ({_, V}) ->
-                          io:format(IODevice, "~s ~n", [pprintState(V)])
-                  end,
-                  D),
+              "~s ~n~n",
+              ["-export([start_link/1, stop/0])."]),
+    io:format(IODevice, "~s ~n~n", ["-export([init/1])."]),
+
+    {S, T, _, _, _, _, _} = tofsm(P),
+
+    io:format(IODevice, "~s ~n~n", [pprintStatesToExport(S)]),
+    List = maps:to_list(T),
+    % io:format("~p ~n", [List]),
+    lists:foreach(fun(Elem) -> io:format(IODevice, "~s ~n", [pprintState(Elem)])
+    end, List),
     io:format(IODevice, "~s ~n", [pprintStop()]).
+
 
 pprintStart() ->
     "start_link([]) -> \n \t gen_statem:start_link"
@@ -94,30 +111,34 @@ pprintStart() ->
             "callback_mode() -> \n \t state_functions. "
             "\n\n".
 
+pprintStatesToExport(S) ->
+  List = lists:map(fun({Key, Val}) ->
+                case Val of
+                  standard_state -> "state" ++ integer_to_list(Key) ++ "/0";
+                  choice_state -> "choice" ++ integer_to_list(Key) ++ "/0";
+                  end_state -> "terminate" ++ "/3"
+                end
+              end,  maps:to_list(S)),
+
+  "-export([" ++ lists:flatten(lists:join(", ", List)) ++ "]).".
+
 pprintStop() ->
     "stop() -> \n \t gen_statem:stop(?NAME).\n".
 
-pprintState(V) ->
-    "% " ++  V#fsm.actions ++ "\n" ++
-    V#fsm.name ++"() -> \n" ++
-    "%.. code for actions here ... \n" ++
-    nextStates(V#fsm.nextState).
+pprintState({Key, Value}) ->
+    "state" ++ integer_to_list(Key) ++"() -> \n" ++
+    pprintNextStates(Value).
 
-nextStates(States) ->
-  Len = length(States),
-  if
-     Len > 1 ->
-      pprintNextStates(States);
-    Len =:= 1 ->
-      pprintNextState(States);
-    Len =:= 0 ->
-      pprintNextStop()
-    end.
 
-pprintNextState([State]) -> "\t {next_state, state" ++ integer_to_list(State) ++ ", {}}. \n".
+pprintNextState(T) -> "\t {next_state, state" ++ integer_to_list(T#transition.to) ++ ", {}}. \n".
 
 pprintNextStop() -> "\t {next_state, stop, {}}. \n".
 
-pprintNextStates([]) -> "";
-pprintNextStates([N]) -> "\t {next_state, state" ++ integer_to_list(N) ++ ", {}}; \n";
-pprintNextStates([N|NS]) -> pprintNextStates(N) ++ pprintNextStates(N).
+% pprintNextStates([]) -> "";
+pprintNextStates([N]) ->
+"\t {next_state, state" ++ integer_to_list(N#transition.to) ++ ", {}}; \n";
+pprintNextStates([N|NS]) -> pprintNextStates(N) ++ pprintNextStates(NS).
+
+example2() ->
+  {rec, "x", {act, a, {branch, [{l, {act, b, endP}}
+                               ,{r, {rvar, "x"}}]}}}.
