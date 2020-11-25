@@ -22,7 +22,7 @@ tofsm({act, Act, P}, S, T, RecMap, PrevIndex, EndIndex, _PrevVis, Label) ->
     Index = PrevIndex + 1,
     Transition = #transition{to = Index, label = Label},
     T1 = add_transition(PrevIndex, Transition, T),
-    Label1 = "act " ++ atom_to_list(Act),
+    Label1 =  string:uppercase(atom_to_list(Act)),
     tofsm(P, S1, T1, RecMap, Index, EndIndex, Index, Label1);
 
 tofsm({branch, Branches}, S, T, RecMap, PrevIndex, EndIndex, _PrevVis, Label) ->
@@ -53,7 +53,7 @@ tofsm(endP, S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label) ->
       IsKey ->
         {S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label};
       true -> Index = PrevIndex + 1,
-              Transition = #transition{to = Index, label = Label},
+              Transition = #transition{to = "stop", label = Label},
               T1 = add_transition(PrevIndex, Transition, T),
               {maps:put(Index, end_state(), S), T1, RecMap, Index, Index, Index, Label}
     end;
@@ -62,7 +62,7 @@ tofsm({_, _, P}, S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label) ->
     tofsm(P, S, T, RecMap, PrevIndex, EndIndex, PrevVis, Label).
 
 tofsmBranch({Label, P}, S, T, RecMap, PrevIndex, EndIndex, _PrevVis) ->
-    Label1 = "choice " ++ atom_to_list(Label),
+    Label1 =  string:uppercase(atom_to_list(Label)),
     Pred = fun(_,V) -> V =:= choice_state() end,
     BrIndex = lists:last(maps:keys(maps:filter(Pred, S))),
     tofsm(P, S, T, RecMap, PrevIndex, EndIndex, BrIndex, Label1).
@@ -94,12 +94,18 @@ gen(File, P) ->
     io:format(IODevice, "~s ~n~n", ["-export([init/1])."]),
 
     {S, T, _, _, _, _, _} = tofsm(P),
-
+    Transitions = maps:remove(0, T),
     io:format(IODevice, "~s ~n~n", [pprintStatesToExport(S)]),
-    List = maps:to_list(T),
-    % io:format("~p ~n", [List]),
-    lists:foreach(fun(Elem) -> io:format(IODevice, "~s ~n", [pprintState(Elem)])
-    end, List),
+    io:format(IODevice, "~s ~n~n", [pprintStart()]),
+
+    lists:foreach(fun({K, V}) ->
+            case maps:get(K, S) of
+              standard_state -> io:format(IODevice, "~s ~n", [pprintFunStd(V)]),
+                                io:format(IODevice, "~s ~n", [pprintState({K, V})]);
+              choice_state -> io:format(IODevice, "~s ~n", [pprintChoice({K, V})]);
+              end_state -> io:format(IODevice, "~s ~n", [pprintStop()])
+            end
+    end, maps:to_list(Transitions)),
     io:format(IODevice, "~s ~n", [pprintStop()]).
 
 
@@ -108,14 +114,13 @@ pprintStart() ->
     "({local,?NAME}, ?MODULE, [], []). \n\n"
         ++
         "init([]) -> \n\t {ok, state0, []}. \n\n" ++
-            "callback_mode() -> \n \t state_functions. "
-            "\n\n".
+            "callback_mode() -> \n \t state_functions. ".
 
 pprintStatesToExport(S) ->
   List = lists:map(fun({Key, Val}) ->
                 case Val of
-                  standard_state -> "state" ++ integer_to_list(Key) ++ "/0";
-                  choice_state -> "choice" ++ integer_to_list(Key) ++ "/0";
+                  standard_state -> "state" ++ integer_to_list(Key) ++ "/3";
+                  choice_state -> "choice" ++ integer_to_list(Key) ++ "/3";
                   end_state -> "terminate" ++ "/3"
                 end
               end,  maps:to_list(S)),
@@ -125,19 +130,34 @@ pprintStatesToExport(S) ->
 pprintStop() ->
     "stop() -> \n \t gen_statem:stop(?NAME).\n".
 
-pprintState({Key, Value}) ->
-    "state" ++ integer_to_list(Key) ++"() -> \n" ++
-    pprintNextStates(Value).
+pprintState({Key, [Value]}) ->
+    "state" ++ integer_to_list(Key) ++
+    "({call, From}, {act"++ Value#transition.label ++", " ++ Value#transition.label ++  "}, Data) -> \n" ++
+    pprintNextState(Value) ++ ".".
 
+pprintChoice({Key, Value}) ->
+      Ch = lists:map(fun(T) ->
+        "choice" ++ integer_to_list(Key) ++
+        "({call, From}, {choice"++ T#transition.label ++", " ++ T#transition.label ++  "}, Data) -> \n"
+      ++ pprintNextState(T)
+    end, Value),
+      lists:flatten(lists:join("; \n", Ch)) ++ ".\n"
+      .
 
-pprintNextState(T) -> "\t {next_state, state" ++ integer_to_list(T#transition.to) ++ ", {}}. \n".
-
+pprintNextState(T) when is_number(T#transition.to) ->
+  "\t {next_state, state" ++ integer_to_list(T#transition.to) ++ ", Data}";
+pprintNextState(T) ->
+  "\t {next_state, " ++  T#transition.to ++ ", Data}".
 pprintNextStop() -> "\t {next_state, stop, {}}. \n".
 
-% pprintNextStates([]) -> "";
-pprintNextStates([N]) ->
-"\t {next_state, state" ++ integer_to_list(N#transition.to) ++ ", {}}; \n";
-pprintNextStates([N|NS]) -> pprintNextStates(N) ++ pprintNextStates(NS).
+pprintFunStd([T]) ->
+  "act" ++ T#transition.label ++ "(" ++ T#transition.label ++ ") ->
+    gen_statem:call(?NAME, {act"++ T#transition.label ++", " ++ T#transition.label ++ "})."
+    .
+pprintFunCh(T) ->
+  "choice" ++ T#transition.label ++ "(" ++ T#transition.label ++ ") ->
+    gen_statem:call(?NAME, {choice"++ T#transition.label ++", " ++ T#transition.label ++ "})."
+    .
 
 example2() ->
   {rec, "x", {act, a, {branch, [{l, {act, b, endP}}
