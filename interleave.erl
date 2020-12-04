@@ -435,6 +435,70 @@ interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
 interleaveMain(_, _, _, _, _, _) ->
 [].
 
+
+
+
+% Factorization
+fact({act, A, S1}, {act, A, S2}) ->
+  fact(S1,S2);
+  
+fact({assert, A, S1}, {assert, A, S2}) ->
+  fact(S1,S2);
+  
+fact({consume, A, S1}, {consume, A, S2}) ->
+  fact(S1,S2);
+
+fact({require, A, S1}, {require, A, S2}) ->
+  fact(S1,S2);
+
+%Note it is different from def 11!
+
+fact({act, A, S1}, S2) ->
+  {act, A, fact(S1,S2)};
+  
+fact({assert, A, S1}, S2) ->
+  {assert, A, fact(S1,S2)};
+
+fact({consume, A, S1}, S2) ->
+  {consume, A, fact(S1,S2)};
+
+fact({require, A, S1}, S2) ->
+  {require, A, fact(S1,S2)};
+
+
+% 1) Branch THIS IS WRONG IN THE PAPER! the fact should not have the branching
+% 1b) can cater for weak composition if instead of == i X==S is a prefixing and I may take the maximal
+fact({branch, LiSi } , {branch, RiSi}) ->
+  L = bramatch(LiSi,RiSi),
+  S = lists:last(L),
+  case lists:all(fun(X) -> (X == S) end, L)  of
+      true -> S;
+      false -> L
+  end;
+  
+fact({branch, LiSi } , S) ->
+  {branch , for(LiSi, fun({A,R}) -> {A,fact(R,S)} end) };
+
+
+
+%2) FBRA 3 is not good!
+
+% 3) I think this is very different from the figure and is ok as coded
+  fact(S, {rvar, _}) -> S;
+  
+  % 4) S<>t needs to be removed. it is in any case
+  fact({rvar, T}, _) -> {rvar, T};
+
+  fact(endP, _) -> endP;
+  
+  fact(_, endP) -> endP.
+
+
+bramatch([{A,S}],[{A,T}]) -> [fact(S,T)];
+bramatch([{A,S}|B1],[{A,T}|B2]) -> [fact(S,T)] ++ bramatch(B1,B2);
+bramatch(_,_)-> noP.
+
+ 
 %merge([{branch, {P, S}}], [{branch, {Q, T}}]) ->
 %bind([{branch, {P, S}}]
 %end);
