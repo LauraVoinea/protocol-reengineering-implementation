@@ -85,7 +85,7 @@ pprint({assert, N, P}) ->
 pprint({require, N, P}) ->
   "require(" ++ atom_to_list(N) ++ ")." ++ pprint(P);
 
-pprint({consume, N, P}) ->
+pprint({require, N, P}) ->
   "consume(" ++ atom_to_list(N) ++ ")." ++ pprint(P);
 
 pprint({rec, BoundVar, P}) ->
@@ -421,9 +421,6 @@ interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
     false -> []
   end;
 
-<<<<<<< HEAD:interleave.erl
-
-
   %check top and well assertedness
 interleaveMain(_, _, _, _, _, _) ->
 [].
@@ -434,10 +431,10 @@ interleaveMain(_, _, _, _, _, _) ->
 % Factorization
 fact({act, A, S1}, {act, A, S2}) ->
   fact(S1,S2);
-  
+
 fact({assert, A, S1}, {assert, A, S2}) ->
   fact(S1,S2);
-  
+
 fact({consume, A, S1}, {consume, A, S2}) ->
   fact(S1,S2);
 
@@ -448,7 +445,7 @@ fact({require, A, S1}, {require, A, S2}) ->
 
 fact({act, A, S1}, S2) ->
   {act, A, fact(S1,S2)};
-  
+
 fact({assert, A, S1}, S2) ->
   {assert, A, fact(S1,S2)};
 
@@ -468,7 +465,7 @@ fact({branch, LiSi } , {branch, RiSi}) ->
       true -> S;
       false -> L
   end;
-  
+
 fact({branch, LiSi } , S) ->
   {branch , for(LiSi, fun({A,R}) -> {A,fact(R,S)} end) };
 
@@ -478,12 +475,12 @@ fact({branch, LiSi } , S) ->
 
 % 3) I think this is very different from the figure and is ok as coded
   fact(S, {rvar, _}) -> S;
-  
+
   % 4) S<>t needs to be removed. it is in any case
   fact({rvar, T}, _) -> {rvar, T};
 
   fact(endP, _) -> endP;
-  
+
   fact(_, endP) -> endP.
 
 
@@ -491,11 +488,7 @@ bramatch([{A,S}],[{A,T}]) -> [fact(S,T)];
 bramatch([{A,S}|B1],[{A,T}|B2]) -> [fact(S,T)] ++ bramatch(B1,B2);
 bramatch(_,_)-> noP.
 
- 
+
 %merge([{branch, {P, S}}], [{branch, {Q, T}}]) ->
 %bind([{branch, {P, S}}]
 %end);
-=======
-% failure case
-interleaveMain(_, _, _, _, _, _) -> [].
->>>>>>> 49affa6680f591dccf0cac3f4f26453907fc3849:src/interleave/interleave.erl
