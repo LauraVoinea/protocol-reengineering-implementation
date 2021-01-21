@@ -65,6 +65,20 @@ pintan() -> {act, r_pin, {branch, [{ok, {assert, pin, {rec, r, {act, s_id, {act,
 
 
 
+bpt() ->
+{act,r_pin,
+         {branch,[{ok,{assert,pin,
+                              {require,pin,
+                                       {rec,r,
+                                            {branch,[{payment,{act,s_id,
+                                                                   {act,s_sdata,
+                                                                        {act,r_tan,
+                                                                             {branch,[{ok,{assert,tan,{consume,tan,{rvar,r}}}},
+                                                                                      {fail,{rvar,r}}]}}}}},
+                                                     {statement,{act,r_pdata,{rvar,r}}},
+                                                     {logout,endP}]}}}}},
+                  {fail,endP},
+                  {logout,endP}]}}.
 
 
 
@@ -85,7 +99,7 @@ pprint({assert, N, P}) ->
 pprint({require, N, P}) ->
   "require(" ++ atom_to_list(N) ++ ")." ++ pprint(P);
 
-pprint({require, N, P}) ->
+pprint({consume, N, P}) ->
   "consume(" ++ atom_to_list(N) ++ ")." ++ pprint(P);
 
 pprint({rec, BoundVar, P}) ->

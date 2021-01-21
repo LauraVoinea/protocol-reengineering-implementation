@@ -16,7 +16,7 @@
 -module(merl_build).
 
 -export([init_module/1, module_forms/1, add_function/4, add_record/3,
-         add_import/3, add_attribute/3, set_file/2, add_macro/3]).
+         add_import/3, add_attribute/3, set_file/2]).
 
 -import(merl, [term/1]).
 
@@ -29,7 +29,6 @@
                 , exports=[]    :: [{atom(), integer()}]
                 , imports=[]    :: [{atom(), [{atom(), integer()}]}]
                 , attributes=[] :: [{filename(), atom(), [term()]}]
-                , macros=[]     :: [{filename(), atom(), [term()], [term()]}]
                 , records=[]    :: [{filename(), atom(),
                                      [{atom(), merl:tree()}]}]
                 , functions=[]  :: [{filename(), atom(), [merl:tree()]}]
@@ -49,7 +48,6 @@ module_forms(#module{name=Name,
                      imports=Is,
                      records=Rs,
                      attributes=As,
-                     macros=Ms,
                      functions=Fs})
   when is_atom(Name), Name =/= undefined ->
     Module = ?Q("-module('@Name@')."),
@@ -61,19 +59,17 @@ module_forms(#module{name=Name,
                   NAs <- [[erl_syntax:arity_qualifier(term(N), term(A))
                            || {N,A} <- ordsets:from_list(Ns)]]
               ],
-    Macros = [?Q("-define(_@N, _@T).")
-                 || {File, N, T} <- lists:reverse(Ms)],
     Attrs = [?Q("-'@N@'('@T@').")
-             || {File, N, T} <- lists:reverse(As)],
+             || {_File, N, T} <- lists:reverse(As)],
     Records = [?Q("-file(\"'@File@\",1). -record('@N@',{'@_RFs'=[]}).")
                || {File, N, Es} <- lists:reverse(Rs),
                   RFs <- [[erl_syntax:record_field(term(F), V)
                            || {F,V} <- Es]]
               ],
     Functions = [?Q("'@_F'() -> [].")
-                 || {File, N, Cs} <- lists:reverse(Fs),
+                 || {_File, N, Cs} <- lists:reverse(Fs),
                     F <- [erl_syntax:function(term(N), Cs)]],
-    lists:flatten([Module, Attrs, Export, Imports, Macros, Records, Functions]).
+    lists:flatten([Module, Attrs, Export, Imports, Records, Functions]).
 
 %% @doc Set the source file name for all subsequently added functions,
 %% records, and attributes.
@@ -101,11 +97,6 @@ add_record(Name, Fields, #module{file=File, records=Rs}=M)
 add_attribute(Name, Term, #module{file=File, attributes=As}=M)
   when is_atom(Name) ->
     M#module{attributes=[{File, Name, Term} | As]}.
-
-%% @doc Add a macro definition to a module representation.
-add_macro(Name, Term, #module{file=File, macros=Ms}=M)
-  ->
-    M#module{macros=[{File, Name, Term} | Ms]}.
 
 %% @doc Add an import declaration to a module representation.
 add_import(From, Names, #module{imports=Is}=M)
