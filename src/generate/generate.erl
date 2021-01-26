@@ -89,14 +89,14 @@ gen_module(Filename, P) ->
         {true, callback_mode, [Cb]},
         {true, init, [Init]}
         | StateFuns ] ++ CBFuns ++ [{true, stop, [Stop]}],
-  Forms = merl_build:add_attribute(behaviour, 'gen_statem',
+  Forms = merl_build:add_attribute(behaviour, [merl:term('gen_statem')],
             merl_build:init_module(Filename)),
-  % Forms1 = merl_build:add_attribute(define, [merl:var('SERVER'), Module], Forms),
+  Forms1 = merl_build:add_attribute(define, [merl:var('SERVER'), Module], Forms),
   merl_build:module_forms(
           lists:foldl(fun ({X, Name, Cs}, S) ->
                               merl_build:add_function(X, Name, Cs, S)
                       end,
-                      Forms,
+                      Forms1,
                       Fs)).
 
 gen(Filename, P) ->

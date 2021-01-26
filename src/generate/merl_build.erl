@@ -59,8 +59,9 @@ module_forms(#module{name=Name,
                   NAs <- [[erl_syntax:arity_qualifier(term(N), term(A))
                            || {N,A} <- ordsets:from_list(Ns)]]
               ],
-    Attrs = [?Q("-'@N@'('@T@').")
-             || {_File, N, T} <- lists:reverse(As)],
+    Attrs = [?Q("'@_Ts'() -> [].")
+             || {_File, N, T} <- lists:reverse(As),
+             Ts <- [erl_syntax:attribute(term(N), T)]],
     Records = [?Q("-file(\"'@File@\",1). -record('@N@',{'@_RFs'=[]}).")
                || {File, N, Es} <- lists:reverse(Rs),
                   RFs <- [[erl_syntax:record_field(term(F), V)

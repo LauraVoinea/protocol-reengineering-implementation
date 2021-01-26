@@ -5,7 +5,7 @@
 
 
 protocol(File, IncludePaths) ->
-  {parsed, gen_statem, Graph} = extract:parse_file(File, IncludePaths),
+  {parsed, gen_statem, Graph} = build_graph:parse_file(File, IncludePaths),
   Vs = lists:sort(digraph:vertices(Graph)),
   V = hd(lists:delete(hd(Vs), Vs)),
   rec(V, Graph, maps:new(), maps:new(), digraph:get_cycle(Graph, V)).
