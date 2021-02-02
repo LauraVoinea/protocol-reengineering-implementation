@@ -1,6 +1,6 @@
 -module(build_fsm).
 
--export([tofsm/1,tograph/1]).
+-export([to_fsm/1,tograph/1]).
 
 -include("reng.hrl").
 
@@ -8,8 +8,8 @@ standard_state() -> standard_state.
 choice_state() -> choice_state.
 end_state() -> end_state.
 
-tofsm(P) ->
-  {Edges, Nodes, _, _, _, _} = tofsm(P, [], maps:new(), maps:new(), 1, 1, -1),
+to_fsm(P) ->
+  {Edges, Nodes, _, _, _, _, _} = to_fsm(P, [], maps:new(), maps:new(), 1, 1, -1, []),
   {Edges, Nodes}.
 
 args(Param) ->
@@ -18,70 +18,78 @@ args(Param) ->
   Send = string:find(Str, "s_"),
   if
     Recv =:= Str ->
-      Var = string:uppercase(lists:last(string:split(Str, "r_"))),
-      Act = list_to_atom("receive"++Var);
+      Var = lists:last(string:split(Str, "r_")),
+      Act = list_to_atom("receive_"++Var);
     Send =:= Str ->
-      Var = string:uppercase(lists:last(string:split(Str, "s_"))),
-      Act = list_to_atom("send" ++ Var);
+      Var = lists:last(string:split(Str, "s_")),
+      Act = list_to_atom("send_" ++ Var);
     true ->
-      Var = string:uppercase(Str),
-      Act = list_to_atom("act" ++ Var)
+      Var = Str,
+      Act = list_to_atom("act_" ++ Var)
    end,
+   {Act, string:titlecase(Var)}.
+
+data(Param, Cons) when Cons =/= [] ->
+  {Act, Var} = args(Param),
+  #data{action = Act, var = list_to_atom(Var), event = cast, cons = Cons};
+data(Param, _Cons) ->
+  {Act, Var} = args(Param),
   #data{action = Act, var = list_to_atom(Var), event = cast}.
 
 
-tofsm({act, Act, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+
+to_fsm({act, Act, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
     Index = PrevIndex + 1,
-    Edge = #trans{from = PrevVis, to = Index, data = args(Act)},
+    Edge = #trans{from = PrevVis, to = Index, data = data(Act, Cons)},
     Edges1 = Edges ++ [Edge],
     Nodes1 = maps:put(PrevVis, standard_state(), Nodes),
-    tofsm(P, Edges1, Nodes1, RecMap, Index, Index, EndIndex);
+    to_fsm(P, Edges1, Nodes1, RecMap, Index, Index, EndIndex, Cons);
 
-tofsm({branch, Branches}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+to_fsm({branch, Branches}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
     Index = PrevIndex + 1,
     Nodes1 = maps:put(PrevVis, choice_state(), Nodes),
-    lists:foldl(fun({Label, P1}, {E, N, R, I, _, EI}) ->
+    lists:foldl(fun({Label, P1}, {E, N, R, I, _, EI, C}) ->
       I1 = I + 1,
-      Edge = #trans{from = PrevVis, to = I1, data = args(Label)},
+      Edge = #trans{from = PrevVis, to = I1, data = data(Label, C)},
       E1 = E ++ [Edge],
-      tofsm(P1, E1, N, R, I1, I1, EI) end,
-      {Edges, Nodes1, RecMap, PrevIndex, Index, EndIndex}, Branches);
+      to_fsm(P1, E1, N, R, I1, I1, EI, []) end,
+      {Edges, Nodes1, RecMap, PrevIndex, Index, EndIndex, Cons}, Branches);
 
-tofsm({rec, BoundVar, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+to_fsm({rec, BoundVar, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
     RecMap1 = maps:put(BoundVar, PrevVis, RecMap),
-    tofsm(P, Edges, Nodes, RecMap1, PrevIndex, PrevVis, EndIndex);
+    to_fsm(P, Edges, Nodes, RecMap1, PrevIndex, PrevVis, EndIndex, Cons);
 
-tofsm({rvar, Var}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+to_fsm({rvar, Var}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
     RecIndex = maps:get(Var, RecMap),
     LastEdge = lists:last(Edges),
     Edge = LastEdge#trans{to=RecIndex},
     Edges1 = lists:droplast(Edges) ++ [Edge],
-    {Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex};
+    {Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons};
 
-tofsm(endP, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+to_fsm(endP, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
     if
       EndIndex =:= -1 ->
         Nodes1 = maps:put(PrevVis, end_state(), Nodes),
-        {Edges, Nodes1, RecMap, PrevIndex, PrevVis, PrevVis};
+        {Edges, Nodes1, RecMap, PrevIndex, PrevVis, PrevVis, Cons};
       EndIndex =/= -1 ->
          LastEdge = lists:last(Edges),
          Edge = LastEdge#trans{to = EndIndex},
          Edges1 = lists:droplast(Edges) ++ [Edge],
-        {Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex}
+        {Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons}
     end;
 
 % post-condition
-tofsm({assert, _N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
-    tofsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex);
+to_fsm({assert, _N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+    to_fsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons);
 % pre-condition
-tofsm({require, _N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
-    tofsm(P, Edges, Nodes,  RecMap, PrevIndex, PrevVis, EndIndex);
+to_fsm({require, _N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+    to_fsm(P, Edges, Nodes,  RecMap, PrevIndex, PrevVis, EndIndex, Cons);
 % pre-condition
-tofsm({consume, _N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
-    tofsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex);
+to_fsm({consume, _N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+    to_fsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons);
 
-tofsm({_, _, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
-    tofsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex).
+to_fsm({_, _, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+    to_fsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons).
 
 
 get_vertex(Graph, Label) ->
@@ -100,7 +108,7 @@ find_label(_, [], _) ->
 
 tograph(P) ->
     Graph = digraph:new(),
-    {Edges, Nodes,  _, _,  _, _} = tofsm(P),
+    {Edges, Nodes,  _, _,  _, _} = to_fsm(P),
     io:format("~p~n", [Edges]),
     lists:foreach(fun(Vertex) ->
                     V = digraph:add_vertex(Graph),
