@@ -4,51 +4,39 @@
 
 -include("reng.hrl").
 
+-spec parse_file(string(), string())-> {atom(), atom(), tuple()}.
 parse_file(File, IncludePaths) ->
    {ok, ParsedFile} = epp:parse_file(File, IncludePaths, []),
    Behaviour = lists:keyfind(behaviour, 3, ParsedFile),
    Behavior = lists:keyfind(behavior, 3, ParsedFile),
-   Reply = case Behaviour of
-          {attribute, _, _, gen_server} ->
-            parse_gen_server(ParsedFile);
-          {attribute, _, _, gen_fsm} ->
-            parse_gen_fsm(ParsedFile);
-          {attribute, _, _, gen_statem} ->
-            parse_gen_statem(ParsedFile);
-          {attribute, _, _, gen_event} ->
-            parse_gen_event(ParsedFile);
+   case Behaviour of
+          {attribute, _, _, gen_server} -> parse_gen_server(ParsedFile);
+          {attribute, _, _, gen_fsm} -> parse_gen_fsm(ParsedFile);
+          {attribute, _, _, gen_statem} -> parse_gen_statem(ParsedFile);
+          {attribute, _, _, gen_event} -> parse_gen_event(ParsedFile);
           false ->
             case Behavior of
-              {attribute, _, _, gen_server} ->
-                parse_gen_server(ParsedFile);
-              {attribute, _, _, gen_fsm} ->
-                parse_gen_fsm(ParsedFile);
-              {attribute, _, _, gen_statem} ->
-                parse_gen_statem(ParsedFile);
-              {attribute, _, _, gen_event} ->
-                parse_gen_event(ParsedFile);
-              false ->
-                {error, not_otp}
+              {attribute, _, _, gen_server} -> parse_gen_server(ParsedFile);
+              {attribute, _, _, gen_fsm} -> parse_gen_fsm(ParsedFile);
+              {attribute, _, _, gen_statem} -> parse_gen_statem(ParsedFile);
+              {attribute, _, _, gen_event} -> parse_gen_event(ParsedFile);
+              false -> {error, not_otp}
             end
-        end,
-    Reply.
+        end.
 
-
-parse_gen_server(_TokenList) ->
-  {error, not_supported}.
+parse_gen_server(_TokenList) -> {error, not_supported}.
 
 parse_gen_statem(TokenList) ->
   Type = gen_statem,
-  Fun =
-    fun({function, _, init, 1, Clauses}, Acc) ->
-          parse_function_add_edges(Clauses, init, [async], Type, Acc);
-       ({function, _, handle_event = FnName, 4, Clauses}, Acc) ->
-          parse_function_add_node_and_edges(Clauses, FnName, [], Type, Acc);
-       ({function, _, FnName, 3, Clauses}, Acc) ->
-          parse_function_add_node_and_edges(Clauses, FnName, [], Type, Acc);
-       (_Other, {OldNodes, OldEdges, OldAllStates}) ->
-          {OldNodes, OldEdges, OldAllStates}
-    end,
+  Fun = fun({function, _, init, 1, Clauses}, Acc) ->
+              parse_function_add_edges(Clauses, init, [async], Type, Acc);
+           ({function, _, handle_event = FnName, 4, Clauses}, Acc) ->
+              parse_function_add_node_and_edges(Clauses, FnName, [], Type, Acc);
+           ({function, _, FnName, 3, Clauses}, Acc) ->
+              parse_function_add_node_and_edges(Clauses, FnName, [], Type, Acc);
+           (_Other, {OldNodes, OldEdges, OldAllStates}) ->
+              {OldNodes, OldEdges, OldAllStates}
+        end,
     Graph = generic_parse(TokenList, Fun),
     {parsed, Type, Graph}.
 
@@ -94,27 +82,22 @@ parse_gen_event(_TokenList) ->
 parse_function_add_states(Clauses, FnName, Options, Type,
                           {OldNodes, OldEdges, OldAllStates}) ->
   case parse_function(Clauses, FnName, Options, Type) of
-    {error, _Reason} ->
-      {OldNodes, OldEdges, OldAllStates};
-    NewEdges ->
-      {OldNodes, OldEdges, OldAllStates ++ NewEdges}
+    {error, _Reason} -> {OldNodes, OldEdges, OldAllStates};
+    NewEdges -> {OldNodes, OldEdges, OldAllStates ++ NewEdges}
   end.
 
 parse_function_add_edges(Clauses, FnName, Options, Type,
                           {OldNodes, OldEdges, OldAllStates}) ->
   case parse_function(Clauses, FnName, Options, Type) of
-    {error, _Reason} ->
-      {OldNodes, OldEdges, OldAllStates};
-    NewEdges ->
-      {OldNodes, OldEdges ++ NewEdges, OldAllStates}
+    {error, _Reason} -> {OldNodes, OldEdges, OldAllStates};
+    NewEdges -> {OldNodes, OldEdges ++ NewEdges, OldAllStates}
   end.
+
 parse_function_add_node_and_edges(Clauses, FnName, Options, Type,
                                   {OldNodes, OldEdges, OldAllStates}) ->
   case parse_function(Clauses, FnName, Options, Type) of
-    {error, _Reason} ->
-      {OldNodes, OldEdges, OldAllStates};
-    NewEdges ->
-      {[FnName|OldNodes], OldEdges ++ NewEdges, OldAllStates}
+    {error, _Reason} -> {OldNodes, OldEdges, OldAllStates};
+    NewEdges -> {[FnName|OldNodes], OldEdges ++ NewEdges, OldAllStates}
   end.
 
 parse_function(Clauses, FnName, Options, Type) ->
@@ -124,10 +107,8 @@ parse_function(Clauses, FnName, Options, Type) ->
   FlatEdges = lists:flatten(Edges),
 
   case lists:all(fun (El) -> {error, bad_transition} == El end, Edges) of
-    false ->
-      FlatEdges;
-    true ->
-      {error, not_a_state}
+    false -> FlatEdges;
+    true -> {error, not_a_state}
   end.
 
 parse_function_clause({clause, _Line, Args, Guards, Body},
@@ -220,51 +201,38 @@ parse_function_clause({clause, _Line, [_Call, Event | Args], Guards, Body},
           PrettyBody = erl_pp:exprs(Body),
           PrettyEvent = erl_pp:expr(Event),
           PrettyArgs = erl_pp:exprs(Args),
-          #edge{
-            from = FnName,
-            to = NextState,
-            edge_data =
-            #edge_data{
-              event = PrettyEvent,
-              args = PrettyArgs,
-              pattern = Args,
-              guard = PrettyGuards,
-              code = PrettyBody,
-              attributes = Options}
-          }
+          #edge{from = FnName, to = NextState, edge_data =
+                                                        #edge_data{
+                                                          event = PrettyEvent,
+                                                          args = PrettyArgs,
+                                                          pattern = Args,
+                                                          guard = PrettyGuards,
+                                                          code = PrettyBody,
+                                                          attributes = Options}
+                                                      }
         end,
   map_parse_func(Fun, FnName, Body, gen_statem).
 
 
 map_parse_func(Fun, State, Body, Type) ->
   case eval_return(State, parse_body(Body), Type, []) of
-    {error, _Reason} ->
-      {error, bad_transition};
-    List ->
-      lists:map(Fun, List)
+    {error, _Reason} -> {error, bad_transition};
+    List -> lists:map(Fun, List)
   end.
 
-parse_body(Body) ->
-  parse_body(Body, []).
+parse_body(Body) -> parse_body(Body, []).
 
 parse_body([Statement|Rest], Acc) ->
   parse_body(Rest, Acc ++ [parse_statement(Statement)]);
-parse_body([], Acc) ->
-  lists:flatten([Acc]).
-
-parse_statement({tuple, Line, Elems}) ->
-  {tuple, Line, Elems};
+parse_body([], Acc) -> lists:flatten([Acc]).
+parse_statement({tuple, Line, Elems}) -> {tuple, Line, Elems};
 parse_statement(Statement) when is_tuple(Statement) ->
-  lists:map(fun(Index) ->
-    parse_statement(element(Index, Statement))
-  end, lists:seq(1, size(Statement)));
+  lists:map(fun(Index) ->  parse_statement(element(Index, Statement))
+                              end, lists:seq(1, size(Statement)));
 parse_statement(Statement) when is_list(Statement) ->
-  lists:map(fun(Index) ->
-    parse_statement(lists:nth(Index, Statement))
-  end, lists:seq(1, length(Statement)));
-parse_statement(_Statement) ->
-  [].
-
+  lists:map(fun(Index) -> parse_statement(lists:nth(Index, Statement))
+                            end, lists:seq(1, length(Statement)));
+parse_statement(_Statement) -> [].
 
 eval_return(State, [ReturnVal|Rest], gen_fsm, Acc) ->
   case eval_tuple(ReturnVal) of
@@ -297,7 +265,6 @@ eval_return(State, [ReturnVal|Rest], gen_statem, Acc) ->
       eval_return(State, Rest, gen_statem, [{ok, NextState, init}|Acc]);
     {ok, ignore} ->
       eval_return(State, Rest, gen_statem, [{ok, terminate, init}|Acc]);
-
     {ok, stop} ->
       eval_return(State, Rest, gen_statem, [{ok, terminate, async}|Acc]);
     {ok, {stop, _Reason}} ->
@@ -308,7 +275,6 @@ eval_return(State, [ReturnVal|Rest], gen_statem, Acc) ->
       eval_return(State, Rest, gen_statem, [{ok, terminate, async}|Acc]);
     {ok, {stop_and_reply, _Reason, _Replies, _NewData}} ->
       eval_return(State, Rest, gen_statem, [{ok, terminate, async}|Acc]);
-
     {ok, {next_state, NextState, _Data}} ->
       eval_return(State, Rest, gen_statem, [{ok, NextState, async}|Acc]);
     {ok, {next_state, NextState, _Data, _Actions}} ->
@@ -332,18 +298,15 @@ eval_return(_, [], _, Acc) ->
 
 eval_tuple({tuple, Line, Elements})->
   ClearElements = lists:map(fun(Element) ->
-    case Element of
-      {atom, RLine, Atom} ->
-        {atom, RLine, Atom};
-      _Other ->
-        {atom, 0, '@var'}
-    end
-  end, Elements),
+                                case Element of
+                                  {atom, RLine, Atom} -> {atom, RLine, Atom};
+                                  _Other -> {atom, 0, '@var'}
+                                end
+                              end, Elements),
   ClearTuple = {tuple, Line, ClearElements},
-  {value, Val, _} = erl_eval:expr(ClearTuple, []), %Bindings),
+  {value, Val, _} = erl_eval:expr(ClearTuple, []),
   {ok, Val};
-eval_tuple(_Other)->
-  {error, not_a_tuple}.
+eval_tuple(_Other)-> {error, not_a_tuple}.
 
 expand_allstates(Edges, States) ->
   ClearStates = lists:delete(init, lists:delete(terminate, States)),
@@ -369,8 +332,7 @@ expand_allstates(Edges, States) ->
       Other ->
         case lists:nth(StateIndex, Data#edge_data.pattern) of
           {atom, _line, StateFrom} ->
-            Acc ++
-              [#edge{from = StateFrom, to = Other, edge_data = Data}];
+            Acc ++ [#edge{from = StateFrom, to = Other, edge_data = Data}];
           _ ->
             Acc ++ lists:map(fun(State) ->
               #edge{from = State, to = Other, edge_data = Data}
@@ -385,13 +347,10 @@ get_vertex(Graph, Label) ->
 
 find_label(Label, [V|Rest], Graph) ->
   case digraph:vertex(Graph, V) of
-    {V, Label} ->
-      V;
-    _ ->
-      find_label(Label, Rest, Graph)
+    {V, Label} -> V;
+    _ -> find_label(Label, Rest, Graph)
   end;
-find_label(_, [], _) ->
-  {error, no_label}.
+find_label(_, [], _) -> {error, no_label}.
 
 remove_dups([])    -> [];
 remove_dups([H|T]) -> [H | [X || X <- remove_dups(T), X /= H]].

@@ -3,7 +3,7 @@
 -export([protocol/2]).
 -include("reng.hrl").
 
-
+-spec parse_file(string(), string())-> interleave:protocol().
 protocol(File, IncludePaths) ->
   {parsed, gen_statem, Graph} = build_graph:parse_file(File, IncludePaths),
   Vs = lists:sort(digraph:vertices(Graph)),

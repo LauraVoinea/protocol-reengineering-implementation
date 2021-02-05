@@ -1,3 +1,4 @@
+%% @doc Process a protocol structure into fsm edges and nodes
 -module(generate).
 
 -export([gen/2]).
@@ -5,57 +6,56 @@
 -include_lib("syntax_tools/include/merl.hrl").
 -include("reng.hrl").
 
+%% @doc represent endP as the special terminate function
 end_state() ->
   Clause = ?Q(["(_Reason, _State, _Data) -> ok"]),
   {true, terminate, [Clause]}.
 
+%% @doc construct the clauses for the standard and choice states
 clause(Event, Act, Var, Trans, NextState, Cons) when length(Cons) == 0 ->
   ?Q(["('@Event@', {'@Act@', _@Var}, Data) ->",
          " {'@Trans@', '@NextState@', Data }"]);
 clause(Event, Act, V, Trans, NextState, Cons) ->
   Fun = fun({require, Var}, Body) ->
-          % Body1 = lists:flatten(Body),
-          % io:format("require ~p ~n", []),
-          % merl:show(Body1),
-          ?Q(["case require(Data) of",
+          FnName = list_to_atom(atom_to_list(require) ++ "_" ++ atom_to_list(Var)),
+          {?Q(["case '@FnName@'(Data) of",
                       "true -> _@Body;",
                       "false -> {keep_state_and_data}",
                       "end"]),
-          ?Q(["case require(Data) of",
+          ?Q(["case '@FnName@' (Data) of",
                       "true -> _@Body;",
                       "false -> {keep_state_and_data}",
-                      "end"]);
+                      "end"])};
             ({assert, Var}, Body) ->
-              % Body1 = lists:flatten(Body),
-              % io:format("Assert ~p ~n", [Body1]),
-%
-             ?Q(["case assert(Data) of",
-                        "true -> _@Body;",
+              FnName = list_to_atom(atom_to_list(assert) ++ "_" ++ atom_to_list(Var)),
+             {?Q(["case '@FnName@' (Data) of",
+                        "{true, NewData} -> _@Body;",
                         "false -> {keep_state_and_data}",
                         "end"]),
-            ?Q(["case assert(Data) of",
-                       "true -> _@Body;",
+            ?Q(["case '@FnName@' (Data) of",
+                       "{true, NewData} -> _@Body;",
                        "false -> {keep_state_and_data}",
-                       "end"]);
+                       "end"])};
             ({consume, Var}, Body) ->
-              % Body1 = lists:flatten(Body),
-              % io:format("Consume ~p ~n", [Body1]),
-             ?Q(["case consume(Data) of",
-                        "true -> _@Body;",
+              FnName = list_to_atom(atom_to_list(consume) ++ "_" ++ atom_to_list(Var)),
+             {?Q(["case consume_@Var(Data) of",
+                        "{true, NewData} -> _@Body;",
                         "false -> {keep_state_and_data}",
                         "end"]),
-            ?Q(["case consume(Data) of",
-                       "true -> _@Body;",
+            ?Q(["case '@FnName@' (Data) of",
+                       "{true, NewData} -> _@Body;",
                        "false -> {keep_state_and_data}",
-                       "end"])
+                       "end"])}
           end,
 
-  % /C = ?Q(["{'@Trans@', '@NextState@', Data }"]),
-  Body1 = lists:last(lists:mapfoldl(Fun, "", Cons)),
-  % merl:show(Body),
-  % io:format("~p ~n", [Body1]),
-  ?Q(["('@Event@', {'@Act@', _@V}, Data) -> _@Body1 "]).
+  C = ?Q(["{'@Trans@', '@NextState@', Data }"]),
+  {_, Acc1} = lists:mapfoldl(Fun, C,  lists:reverse(Cons)),
+  ?Q(["('@Event@', {'@Act@', _@V}, Data) -> _@Acc1 "]).
 
+%% @doc an extra clause for enter state
+enter_clause() -> ?Q(["(enter, _OldState, _Data) -> keep_state_and_data"]).
+
+%% @doc generates standard states, i.e. act x
 std_state(Id, [Edge], Nodes) ->
   case maps:get(Edge#trans.to, Nodes) of
     end_state -> NextState = normal,
@@ -69,8 +69,9 @@ std_state(Id, [Edge], Nodes) ->
   Cons = Edge#trans.data#data.cons,
   Clause = clause(Event, Act, Var, Trans, NextState, Cons),
   Name = list_to_atom("state" ++ integer_to_list(Id)),
-  {true, Name, [Clause]}.
+  {true, Name, [enter_clause(), Clause]}.
 
+%% @doc generates choice states, i.e. branch
 choice_state(Id, Edges, Nodes) ->
   Fun = fun(Edge) ->
     case maps:get(Edge#trans.to, Nodes) of
@@ -85,11 +86,11 @@ choice_state(Id, Edges, Nodes) ->
     Cons = Edge#trans.data#data.cons,
     clause(Event, Act, Var, Trans, NextState, Cons)
     end,
-  Clauses = lists:map(Fun, Edges),
+  Clauses = [enter_clause()] ++ lists:map(Fun, Edges),
   Name = list_to_atom("state" ++ integer_to_list(Id)),
   {true, Name, Clauses}.
 
-
+%% @doc calls the appropriate function for choice and standard states
 state_funs(K, V, Edges, Nodes) ->
   case V of
     end_state -> end_state();
@@ -103,7 +104,7 @@ state_funs(K, V, Edges, Nodes) ->
       std_state(K, Edge, Nodes)
   end.
 
-
+%% @doc generate the callback functions
 cb_fun(#data{action = Act, var = Var, event = Event}, NameMacro) ->
   Var1 = merl:var(Var),
   Clauses = ?Q(["(_@Var1) ->",
@@ -111,11 +112,15 @@ cb_fun(#data{action = Act, var = Var, event = Event}, NameMacro) ->
             ]),
   {true, Act, [Clauses]}.
 
+%% @doc generate constraint functions
 cons_funs(#data{cons = Cons}) ->
   lists:map(fun({Con, Var}) ->
             Name = list_to_atom(atom_to_list(Con) ++ "_" ++ atom_to_list(Var)),
-            Clauses = ?Q(["(Data) ->",
-                       "true"]),
+            Clauses = case Con of
+                            require -> ?Q(["(Data) -> true"]);
+                            assert ->  ?Q(["(Data) -> {true, Data}"]);
+                            consume ->  ?Q(["(Data) -> {true, Data}"])
+                      end,
             {true, Name, [Clauses]}
           end, Cons).
 
@@ -126,7 +131,7 @@ gen_module(Filename, P) ->
   Start = ?Q(["() -> ",
            "gen_statem:start_link({local, _@Server}, _@Module, [], []) "]),
   Cb = ?Q(["() -> ",
-           "state_functions "]),
+           "[state_functions, state_enter] "]),
   Stop = ?Q(["() -> ",
             "gen_statem:stop(_@Server)"]),
   Init = ?Q(["([]) ->
@@ -143,7 +148,7 @@ gen_module(Filename, P) ->
   Fs = [{true, start_link, [Start]},
         {true, callback_mode, [Cb]},
         {true, init, [Init]}
-        | StateFuns ] ++ CBFuns ++ [{true, stop, [Stop]}] ++ ConsFuns,
+        | StateFuns ] ++ CBFuns ++ [{true, stop, [Stop]}] ++ lists:usort(ConsFuns),
   Forms = merl_build:add_attribute(behaviour, [merl:term('gen_statem')],
             merl_build:init_module(Filename)),
   Forms1 = merl_build:add_attribute(define, [merl:var('SERVER'), Module], Forms),
@@ -153,7 +158,7 @@ gen_module(Filename, P) ->
                       end,
                       Forms1,
                       Fs)).
-
+-spec gen(atom(), interleave:protocol()) -> none().
 gen(Filename, P) ->
     Forms = gen_module(Filename, P),
     file:write_file(lists:concat([Filename, ".erl"]),
