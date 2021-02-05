@@ -18,66 +18,75 @@
                    | {'rvar', string()}
                    | 'endP'.
 
-i1() -> {act, pay, {assert, pay, {act, receipt, endP}}}.
-i2() -> {consume, pay, {act, item, endP}}.
-example1() ->
-  {rec, "x", {act, a, {act, b, {rvar, "x"}}}}.
 
-example2() ->
-  {rec, "x", {act, a, {branch, [{l, {act, b, {require, n, endP}}}
-                               ,{r, {rvar, "x"}}]}}}.
+% # Examples
+e1() ->
+  {act, n, endP}.
 
-example3() ->
-  {branch, [{l, {act, b, {assert, n, endP}}} ,{r, {act, c, {assert, n, endP}}}]}.
-
-example4() ->
+e2() ->
   {require, n, {act, x, endP}}.
 
-e1() -> {branch, [{l, {assert, n, endP}} ,{r, {assert, n, endP}}, {m, {assert, n, endP}}]}.
-e2() -> {act, n, endP}.
-e3() -> {branch, [{l, {require, n, endP}} ,{r, {act, c, endP}}, {m, {assert, n, endP}}]}.
+e3() ->
+  {assert, n, {act, y, endP}}.
+  
+e4() ->
+  {branch, [{l, {act, b, {assert, n, endP}}} ,{r, {act, c, {assert, n, endP}}}]}.
+  
+e5() ->
+  {branch, [{l, {assert, n, endP}} ,{r, {assert, n, endP}}, {m, {assert, n, endP}}]}.
 
+e6() ->
+  {branch, [{l, {require, n, endP}} ,{r, {act, c, endP}}, {m, {assert, n, endP}}]}.
+  
+e7() ->
+  {act, r_pwd, {branch, [{ok, {assert, n, endP}},{fail, endP}]}}.
 
+e8() ->
+  {require, n, {act, do_banking, endP}}.
 
-sa() -> {act, r_pwd, {branch, [{ok, {assert, n, endP}},{fail, endP}]}}.
-sb() -> {require, n, {act, do_banking, endP}}.
+e9() ->
+  {rec, "x", {act, a, {act, b, {rvar, "x"}}}}.
 
+e10() ->
+  {rec, "y", {act, a, {branch, [{l, {act, b, {require, n, endP}}}
+                               ,{r, {rvar, "y"}}]}}}.
 
-
-bank() -> {require, pin, {rec, t, {branch, [{payment, {act, r_details, {consume, tan, {rvar, t}}}},
+bank() ->
+  {require, pin, {rec, t, {branch, [{payment, {consume, tan,{act, r_payment,  {rvar, t}}}},
                                           {statement, {act, s_statement, {rvar, t}}},
-                                          {logout, {consume, pin, endP}}
-                                          ]
-                                }
-                        }
-        }.
-
-pintan() -> {act, r_pin, {branch, [{ok, {assert, pin, {rec, r, {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
-                                                                                              {fail, {rvar, r}}]
-                                                                                    }
-
-                                                                      }
-                                                            }
-                                                  }
-                                    }
-                                },
-                              {fail, endP}]
-                              % {logout, endP}]
-                      }
-        }.
-
-bpt() ->  {act,r_pin,
-      {branch,[{ok,{assert,pin,
-                           {require,pin,
-                                    {rec,r,
-                                         {branch,[{payment,{act,s_id,
-                                                                {act,r_tan,
-                                                                     {branch,[{ok,{assert,tan,
-                                                                                          {act,r_details,{consume,tan,{rvar,r}}}}},
-                                                                              {fail,{rvar,r}}]}}}},
-                                                  {statement,{act,s_statement,{rvar,r}}},
-                                                  {logout,{consume,pin,endP}}]}}}}},
-               {fail,endP}]}}.
+                                          {logout, endP}]
+                          }
+                  }
+  }.        
+          
+pintan() ->
+  {act, r_pin, {branch, [
+                                    {ok, {assert, pin, {rec, r, ctan()}}},
+                                    {fail, endP}]
+                }
+  }.
+                  
+ctan() ->
+  {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
+                                            {fail, {rvar, r}}]
+                            }
+              }
+  }.
+                                                            
+pin() ->
+  {act, r_pin, {branch, [{ok, {assert, pin, endP}},
+                                {fail, endP}]
+                }
+  }.
+          
+tan() ->
+  {require, pin, {rec, r, {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
+                                                              {fail, {rvar, r}}]
+                                                    }
+                                      }
+                          }
+                  }
+  }.
 
 
 %% @doc Pretty print protocols
