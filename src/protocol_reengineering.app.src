@@ -1,7 +1,8 @@
 {application, protocol_reengineering,
- [{description, "An OTP library"},
+ [{description, "An OTP application"},
   {vsn, "0.1.0"},
   {registered, []},
+  {mod, {protocol_reengineering_app, []}},
   {applications,
    [kernel,
     stdlib

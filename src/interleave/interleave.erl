@@ -28,16 +28,16 @@ e2() ->
 
 e3() ->
   {assert, n, {act, y, endP}}.
-  
+
 e4() ->
   {branch, [{l, {act, b, {assert, n, endP}}} ,{r, {act, c, {assert, n, endP}}}]}.
-  
+
 e5() ->
   {branch, [{l, {assert, n, endP}} ,{r, {assert, n, endP}}, {m, {assert, n, endP}}]}.
 
 e6() ->
   {branch, [{l, {require, n, endP}} ,{r, {act, c, endP}}, {m, {assert, n, endP}}]}.
-  
+
 e7() ->
   {act, r_pwd, {branch, [{ok, {assert, n, endP}},{fail, endP}]}}.
 
@@ -57,28 +57,28 @@ bank() ->
                                           {logout, endP}]
                           }
                   }
-  }.        
-          
+  }.
+
 pintan() ->
   {act, r_pin, {branch, [
                                     {ok, {assert, pin, {rec, r, ctan()}}},
                                     {fail, endP}]
                 }
   }.
-                  
+
 ctan() ->
   {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
                                             {fail, {rvar, r}}]
                             }
               }
   }.
-                                                            
+
 pin() ->
   {act, r_pin, {branch, [{ok, {assert, pin, endP}},
                                 {fail, endP}]
                 }
   }.
-          
+
 tan() ->
   {require, pin, {rec, r, {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
                                                               {fail, {rvar, r}}]
@@ -378,31 +378,3 @@ interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
   end;
 %% check top and well assertedness
 interleaveMain(_, _, _, _, _, _) -> [].
-
-%% @doc Factorization
-fact({act, A, S1}, {act, A, S2}) -> fact(S1,S2);
-fact({assert, A, S1}, {assert, A, S2}) ->  fact(S1,S2);
-fact({consume, A, S1}, {consume, A, S2}) ->  fact(S1,S2);
-fact({require, A, S1}, {require, A, S2}) ->  fact(S1,S2);
-fact({act, A, S1}, S2) ->  {act, A, fact(S1,S2)};
-fact({assert, A, S1}, S2) -> {assert, A, fact(S1,S2)};
-fact({consume, A, S1}, S2) -> {consume, A, fact(S1,S2)};
-fact({require, A, S1}, S2) -> {require, A, fact(S1,S2)};
-fact({branch, LiSi } , {branch, RiSi}) ->
-  L = bramatch(LiSi,RiSi),
-  S = lists:last(L),
-  case lists:all(fun(X) -> (X == S) end, L)  of
-      true -> S;
-      false -> L
-  end;
-fact({branch, LiSi}, S) ->
-  {branch, for(LiSi, fun({A, R}) -> {A, fact(R, S)} end)};
-fact(S, {rvar, _}) -> S;
-fact({rvar, T}, _) -> {rvar, T};
-fact(endP, _) -> endP;
-fact(_, endP) -> endP.
-
-
-bramatch([{A,S}],[{A,T}]) -> [fact(S,T)];
-bramatch([{A,S}|B1],[{A,T}|B2]) -> [fact(S,T)] ++ bramatch(B1,B2);
-bramatch(_,_)-> noP.
