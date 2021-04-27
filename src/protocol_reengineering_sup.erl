@@ -29,7 +29,11 @@ init([]) ->
     SupFlags = #{strategy => one_for_all,
                  intensity => 0,
                  period => 1},
-    ChildSpecs = [],
-    {ok, {SupFlags, ChildSpecs}}.
+
+   ProtocolReeng = {server, {protocol_reengineering, start_link, []},
+                  permanent, 2000, worker, [protocol_reengineering]},
+   {ok, {SupFlags, [ProtocolReeng]}}.
+
+
 
 %% internal functions

@@ -5,8 +5,8 @@
 -include("reng.hrl").
 
 -spec parse_file(string(), string())-> {atom(), atom(), tuple()}.
-parse_file(File, IncludePaths) ->
-   {ok, ParsedFile} = epp:parse_file(File, IncludePaths, []),
+parse_file(File, Path) ->
+   {ok, ParsedFile} = epp:parse_file(File, Path, []),
    Behaviour = lists:keyfind(behaviour, 3, ParsedFile),
    Behavior = lists:keyfind(behavior, 3, ParsedFile),
    case Behaviour of

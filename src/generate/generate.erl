@@ -158,6 +158,7 @@ gen_module(Filename, P) ->
                       end,
                       Forms1,
                       Fs)).
+
 -spec gen(atom(), interleave:protocol()) -> none().
 gen(Filename, P) ->
     Forms = gen_module(Filename, P),

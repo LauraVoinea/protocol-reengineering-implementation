@@ -4,8 +4,8 @@
 -include("reng.hrl").
 
 -spec protocol(string(), string())-> interleave:protocol().
-protocol(File, IncludePaths) ->
-  {parsed, gen_statem, Graph} = build_graph:parse_file(File, IncludePaths),
+protocol(File, Path) ->
+  {parsed, gen_statem, Graph} = build_graph:parse_file(File, Path),
   Vs = lists:sort(digraph:vertices(Graph)),
   V = hd(lists:delete(hd(Vs), Vs)),
   rec(V, Graph, maps:new(), maps:new(), digraph:get_cycle(Graph, V)).

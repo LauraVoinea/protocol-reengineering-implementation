@@ -10,7 +10,7 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
-    protocol-reengineering-implementation_sup:start_link().
+    protocol_reengineering_sup:start_link().
 
 stop(_State) ->
     ok.
