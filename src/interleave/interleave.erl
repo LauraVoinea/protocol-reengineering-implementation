@@ -91,12 +91,12 @@ tan() ->
 gent1() -> {branch, [{r_ua_set_ua_set, {assert, n, {assert, set, {act, r_ua_coord, {assert, coord, {act, s_au_state, endP}}}}}},
                                {r_ua_get, {assert, n, {assert, get,{act, s_au_snap, {assert, snap, endP}}}}},
                                {r_ua_close,{assert, n, {assert, close, endP}}}]
-            }.                                          
-                        
+            }.
+
 agent2() -> {consume, n, {branch, [{s_ai_set, {consume, set, {act, s_ai_coord, {consume, coord, {act, r_ia_state, endP}}}}},
                                {s_ai_get, {consume, get, {act, r_ia_snap, {consume, snap, endP}}}},
-                               {s_ai_close, {consume, close, endP}}]           
-            }}.              
+                               {s_ai_close, {consume, close, endP}}]
+            }}.
 
 %% @doc Pretty print protocols
 -spec pprint(protocol()) -> string().
@@ -241,8 +241,10 @@ twoCovering([A|AS]) ->
 threeCovering([])  -> [];
 threeCovering([A]) -> [{[A], [], []}, {[], [A], []}, {[], [], [A]}];
 threeCovering([A|AS]) ->
-  bind(threeCovering(AS), fun({XS, YS, ZS}) -> [{[A|XS], YS, ZS}, {XS, [A|YS], ZS}, {XS, YS, [A|ZS]}] end).
-
+  bind(threeCovering(AS), fun({XS, YS, ZS}) ->
+                                Pred = fun({X, _ , _}) -> X =/= [] end,
+                                lists:filter(Pred, [{[A|XS], YS, ZS}, {XS, [A|YS], ZS}, {XS, YS, [A|ZS]}])
+                                end).
 
 %% @doc Take the largest list in a list of lists
 maximalPossibility(XS) -> maximalPoss(XS, []).
@@ -400,10 +402,10 @@ interleaveMain(_, _, _, _, _, _) -> [].
 %[Fprex1]
 fact({act, A, S1}, {act, A, S2}) ->
   fact(S1,S2);
-  
+
 fact({assert, A, S1}, {assert, A, S2}) ->
   fact(S1,S2);
-  
+
 fact({consume, A, S1}, {consume, A, S2}) ->
   fact(S1,S2);
 
@@ -413,7 +415,7 @@ fact({require, A, S1}, {require, A, S2}) ->
 %[Fprex2]
 fact({act, A, S1}, S2) ->
   {act, A, fact(S1,S2)};
-  
+
 fact({assert, A, S1}, S2) ->
   {assert, A, fact(S1,S2)};
 
@@ -437,7 +439,7 @@ fact({branch, LiSi } , {branch, RiSi}) ->
 fact({branch, LiSi } , S) ->
   {branch , for(LiSi, fun({A,R}) -> {A,fact(R,S)} end) };
 
-  
+
 fact({rec, T1, S1}, {rec, T1, S2}) -> fact(S1,S2);
 
 fact({rec, T1, S1}, {rec, T2, S2}) -> fact(S1,subst(S2, T1, T2, []));
@@ -446,12 +448,12 @@ fact({rec, T, S}, _) -> {rec, T, S};
 
 
 fact({rvar, T1}, {rvar, T1}) -> {rvar, T1};
-  
+
 
 fact(S, {rvar, _}) -> S;
-  
+
 fact(endP, _) -> endP;
-  
+
 fact(_, endP) -> endP.
 
 bramatch([{A,S}],[{A,T}]) -> [fact(S,T)];
