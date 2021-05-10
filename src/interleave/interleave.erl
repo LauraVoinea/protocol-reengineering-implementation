@@ -88,7 +88,7 @@ tan() ->
                   }
   }.
 
-gent1() -> {branch, [{r_ua_set_ua_set, {assert, n, {assert, set, {act, r_ua_coord, {assert, coord, {act, s_au_state, endP}}}}}},
+agent1() -> {branch, [{r_ua_set_ua_set, {assert, n, {assert, set, {act, r_ua_coord, {assert, coord, {act, s_au_state, endP}}}}}},
                                {r_ua_get, {assert, n, {assert, get,{act, s_au_snap, {assert, snap, endP}}}}},
                                {r_ua_close,{assert, n, {assert, close, endP}}}]
             }.
@@ -246,6 +246,13 @@ threeCovering([A|AS]) ->
                                 lists:filter(Pred, [{[A|XS], YS, ZS}, {XS, [A|YS], ZS}, {XS, YS, [A|ZS]}])
                                 end).
 
+
+
+keepTwo([]) -> [];
+keepTwo([{A,B,_}|L]) -> [{A,B}] ++ keepTwo(L).
+
+
+
 %% @doc Take the largest list in a list of lists
 maximalPossibility(XS) -> maximalPoss(XS, []).
 maximalPoss([], Max) -> Max;
@@ -259,12 +266,18 @@ interleave(S1, S2) -> nub(interleaveTop(strong, [], [], [], S1, S2)).
 
 -spec interleaveWeak(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
-interleaveWeak(S1, S2) -> nub(interleaveTop(weakWeak, [], [], [], S1, S2)).
+interleaveWeak(S1, S2) -> nub(interleaveTop(weak, [], [], [], S1, S2)).
 
 -spec interleaveWeakStrong(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
 interleaveWeakStrong(S1, S2) ->
     nub(interleaveTop(weakStrong, [], [], [], S1, S2)).
+
+-spec interleaveWeakWeak(protocol(), protocol()) -> [protocol ()].
+%% @doc Wraps the main function and passes in empty environments
+interleaveWeakWeak(S1, S2) ->
+    nub(interleaveTop(weakWeak, [], [], [], S1, S2)).
+
 
 %% @doc n-way Cartesian product
 -spec nCartesian([[A]]) -> [[A]].
@@ -336,7 +349,8 @@ interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
       strong -> [{LiSi, []}];
       % otherwise La,Lb partitions where La is non-empty
       % Compute the two covering, of which the last has Ia = \emptyset so drop it
-      _      -> lists:droplast(twoCovering(LiSi))
+      weakWeak -> keepTwo(threeCovering(LiSi));
+      weak     -> lists:droplast(twoCovering(LiSi))
     end,
   Possibilities = for(Covering,
     fun ({Ia, Ib}) ->
@@ -358,8 +372,7 @@ interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
   end),
   case WeakFlag of
     strong     -> lists:concat(Possibilities);
-    weakWeak   -> lists:concat(Possibilities);
-    weakStrong -> maximalPossibility(Possibilities)
+    _ -> maximalPossibility(Possibilities)
   end;
 %% [rec1]
 interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
