@@ -1,5 +1,5 @@
 {application, protocol_reengineering,
- [{description, "An OTP application"},
+ [{description, "Protocol re-engineering application"},
   {vsn, "0.1.0"},
   {registered, []},
   {mod, {protocol_reengineering_app, []}},

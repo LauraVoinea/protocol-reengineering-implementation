@@ -27,7 +27,7 @@ args(Param) ->
     Recv =:= Str ->
       Event = cast,
       Var = lists:last(string:split(Str, "r_")),
-      Act = list_to_atom("receive_"++Var);
+      Act = list_to_atom("receive_"++ Var);
     Send =:= Str ->
       Event = internal,
       Var = lists:last(string:split(Str, "s_")),
@@ -67,6 +67,7 @@ to_fsm({branch, Branches}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, C
       Edge = #trans{from = PrevVis, to = I1, data = data(Label, C)},
       E1 = E ++ [Edge],
       to_fsm(P1, E1, N, R, I1, I1, EI, []) end,
+      % to_fsm(P1, E, N, R, PrevVis, I, EI, []) end,
       {Edges, Nodes1, RecMap, PrevIndex, Index, EndIndex, Cons}, Branches);
 to_fsm({rec, BoundVar, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
     RecMap1 = maps:put(BoundVar, PrevVis, RecMap),

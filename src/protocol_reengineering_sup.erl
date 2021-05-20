@@ -30,8 +30,8 @@ init([]) ->
                  intensity => 0,
                  period => 1},
 
-   ProtocolReeng = {server, {protocol_reengineering, start_link, []},
-                  permanent, 2000, worker, [protocol_reengineering]},
+   ProtocolReeng = {server, {reengineering, start_link, []},
+                  permanent, 2000, worker, [reengineering]},
    {ok, {SupFlags, [ProtocolReeng]}}.
 
 

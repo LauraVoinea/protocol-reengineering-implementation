@@ -1,11 +1,11 @@
 -module(extract).
 
--export([protocol/2]).
+-export([protocol/1]).
 -include("reng.hrl").
 
--spec protocol(string(), string())-> interleave:protocol().
-protocol(File, Path) ->
-  {parsed, gen_statem, Graph} = build_graph:parse_file(File, Path),
+-spec protocol(string())-> interleave:protocol().
+protocol(File) ->
+  {parsed, gen_statem, Graph} = build_graph:parse_file(File),
   Vs = lists:sort(digraph:vertices(Graph)),
   V = hd(lists:delete(hd(Vs), Vs)),
   rec(V, Graph, maps:new(), maps:new(), digraph:get_cycle(Graph, V)).

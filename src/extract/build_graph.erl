@@ -1,14 +1,15 @@
 -module(build_graph).
 
--export([parse_file/2]).
+-export([parse_file/1]).
 
 -include("reng.hrl").
 
--spec parse_file(string(), string())-> {atom(), atom(), tuple()}.
-parse_file(File, Path) ->
-   {ok, ParsedFile} = epp:parse_file(File, Path, []),
+-spec parse_file(string())-> {atom(), atom(), tuple()}.
+parse_file(File) ->
+   {ok, ParsedFile} = epp:parse_file(File, []),
    Behaviour = lists:keyfind(behaviour, 3, ParsedFile),
    Behavior = lists:keyfind(behavior, 3, ParsedFile),
+
    case Behaviour of
           {attribute, _, _, gen_server} -> parse_gen_server(ParsedFile);
           {attribute, _, _, gen_fsm} -> parse_gen_fsm(ParsedFile);
@@ -62,6 +63,8 @@ parse_gen_fsm(TokenList) ->
     {parsed, Type, Graph}.
 
 generic_parse(TokenList, Fun) ->
+  Comments = erl_comment_scan:scan_lines(TokenList),
+  io:format("~p~n", [Comments]),
   Graph = digraph:new(),
   {States, Edges, AllStateEdges} = lists:foldl(Fun, {[init, terminate],[],[]}, TokenList),
   NewAllStateEdges = expand_allstates(AllStateEdges, States),
