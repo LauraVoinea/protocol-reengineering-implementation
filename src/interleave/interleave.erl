@@ -88,31 +88,17 @@ tan() ->
                   }
   }.
 
-agent1() -> {branch, [
-                      {r_ua_set, {assert, n,  {assert, s, {act, r_ua_coord, {assert, c, {consume, r, {act, s_au_state,  endP}}}}}}},
-                      {r_ua_get, {assert, n, {assert, g, {consume, r, {act, s_au_snap, endP}}}}},
-                      {r_ua_close, {assert, n, {assert, e, endP}}}]
+agent1() -> {branch, [{r_ua_set_ua_set, {assert, n, {assert, set, {act, r_ua_coord, {assert, coord, {act, s_au_state, endP}}}}}},
+                               {r_ua_get, {assert, n, {assert, get,{act, s_au_snap, {assert, snap, endP}}}}},
+                               {r_ua_close,{assert, n, {assert, close, endP}}}]
             }.
 
-agent2() -> {consume, n, {branch, [
-                               {s_ai_set, {consume, s, {consume, c, {act, s_ai_coord,  {act, r_ia_state, {assert, r, endP}}}}}},
-                               {s_ai_get, {consume, g,  {act, r_ia_snap, {assert, r, endP}}}},
-                               {s_ai_close, {consume, e, endP}}]
+agent2() -> {consume, n, {branch, [{s_ai_set, {consume, set, {act, s_ai_coord, {consume, coord, {act, r_ia_state, endP}}}}},
+                               {s_ai_get, {consume, get, {act, r_ia_snap, {consume, snap, endP}}}},
+                               {s_ai_close, {consume, close, endP}}]
             }}.
-
-
-
-weakweakEx() -> nub(for(interleaveWeakWeak(agent1(),agent2()), fun(S) -> strip(S) end)).
-
-
-we1() -> {branch, [{ra, {assert, n, {assert, a, endP}}}, {rb, {assert, n, {assert, b, endP}}}]}.
-we2() -> {consume, n, {branch, [{sa, {consume, a, endP}}, {sb, {consume, b, endP}}]}}.
-
-we3() -> {branch, [{ra, {assert, a, endP}}, {rb, {assert, b, endP}}]}.
-we4() -> {branch, [{sa, {consume, a, endP}}, {sb, {consume, b, endP}}]}.
-
-we5() -> {branch, [{ra, {assert, a, endP}}, {rb, {consume, b, endP}}]}.
-we6() -> {branch, [{sa, {consume, a, endP}}, {sb, {assert, b, endP}}]}.
+            
+            
 
 
 %% @doc Pretty print protocols
@@ -133,6 +119,35 @@ pprint({rvar, Var}) ->
   Var;
 pprint(endP) ->
   "end".
+  
+% power set
+
+power([]) -> [[]];
+power([H|T]) -> PT = power(T),
+   [ [H|X] || X <- PT ] ++ PT .
+  
+  
+filterSet(Data) when is_list(Data) ->
+    Pred = fun(Element) -> Element /= [] end,
+    lists:filter(Pred, Data). 
+
+
+     
+
+
+%% convolute partition
+
+% Finds the subset of J without empty set
+jBranch(J) -> filterSet(power(J)).
+
+% Finds the possible incomplete configurations of J beanches
+jBRanches(J) -> nCartesian(jBranch(J)).
+
+com1() -> {branch, [{a, {consume, a, endP}}, {b, {consume, b, endP}}] }.
+com2() -> {branch, [{a, {assert, a, endP}}, {b, {assert, a, endP}}] }.
+
+test({branch, LiSi2}) -> jBranch(LiSi2).
+
 
 %% @doc Substitution
 -spec subst(protocol(), string(), string(), [string()]) -> protocol().
@@ -162,20 +177,6 @@ pprintBranch({Label, P}) -> atom_to_list(Label) ++ " : " ++ pprint(P).
 pprintBranches([])     -> "";
 pprintBranches([B])    -> pprintBranch(B);
 pprintBranches([B|BS]) -> pprintBranch(B) ++ "; " ++ pprintBranches(BS).
-
-
-%% Strips all assertions
--spec strip(protocol()) -> protocol().
-strip({assert, _, P}) -> strip(P);
-strip({require, _, P}) -> strip(P);
-strip({consume, _, P}) -> strip(P);
-strip({act, Act, P}) -> {act, Act, strip(P)};
-strip({branch, LiSi}) ->
-  {branch, for(LiSi, fun({Li, Si}) -> {Li, strip(Si)} end)};
-strip({rec, T, P}) -> {rec, T, strip(P)};
-strip(P) -> P. 
-  
-
 
 %% @doc Assertedness
 % WIP: defaults to well-asserted
@@ -268,18 +269,6 @@ twoCovering([A|AS]) ->
   bind(twoCovering(AS), fun({XS, YS}) -> [{[A|XS], YS}, {XS, [A|YS]}] end).
 
 
-% Compute a covering of a set (with three partitions) where the third is ignored
-threeCovering([])  -> [];
-threeCovering([A]) -> [{[A], [], []}, {[], [A], []}, {[], [], [A]}];
-threeCovering([A|AS]) ->  bind(threeCovering(AS), fun({XS, YS, ZS}) -> [{[A|XS], YS, ZS}, {XS, [A|YS], ZS}, {XS, YS, [A|ZS]}] end).
- % bind(threeCovering(AS), fun({XS, YS, ZS}) ->
- %                               Pred = fun({X, _ , _}) -> X =/= [] end,
- %                               lists:filter(Pred, [{[A|XS], YS, ZS}, {XS, [A|YS], ZS}, {XS, YS, [A|ZS]}])
- %                               end).
-
-keepTwo([]) -> [];
-keepTwo([{[],_,_}|L]) -> keepTwo(L);
-keepTwo([{A,B,_}|L]) -> [{A,B}] ++ keepTwo(L).
 
 
 
@@ -303,10 +292,10 @@ interleaveWeak(S1, S2) -> nub(interleaveTop(weak, [], [], [], S1, S2)).
 interleaveWeakStrong(S1, S2) ->
     nub(interleaveTop(weakStrong, [], [], [], S1, S2)).
 
--spec interleaveWeakWeak(protocol(), protocol()) -> [protocol ()].
+-spec interleaveCombine(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
-interleaveWeakWeak(S1, S2) ->
-    nub(interleaveTop(weakWeak, [], [], [], S1, S2)).
+interleaveCombine(S1, S2) ->
+    nub(interleaveTop(combining, [], [], [], S1, S2)).
 
 
 %% @doc n-way Cartesian product
@@ -371,16 +360,46 @@ interleaveMain(WeakFlag, TL, TR, A, {assert, P, S1}, S2) ->
 %% LiSi is the list of label-protocol pairs
 interleaveMain(_, _, _, _, {branch, []}, _) -> errorEmptyBranch;
 
-%% [branch]
+
+  % Finds the subset of J without empty set
+% jBranch(J) -> filterSet(power(J)).
+
+  %% [ibra]
+interleaveMain(combining, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
+       JCovering = jBranch(LiSi2),
+       AllCombinations = nCartesian(
+                            for(LiSi1, fun ({Li, Si}) ->
+                                    for(JCovering, fun(Jset) ->
+                                        for(Jset, fun({Lj, Sj}) ->
+                                                     % Find all intereleavings for Si with S2 - put with its label
+                                                     % with possible weakening modes
+                                                    Branches = for(interleaveTop(combining, TL, TR, A, Si, Sj),
+                                                      fun(Sip) -> {Lj, Sip}
+                                                    end),
+                                                    for(Branches, fun(LjSj) -> {branch, LjSj} end)
+                                                  end)
+                                                end)
+                                                
+                                              end)  ),
+                                              
+                                              
+       for(AllCombinations, fun(LiSip) -> {branch, LiSip} end);
+          
+%  for(Results, fun(S) -> S end);
+%  maximalPossibility(Possibilities);
+
+ 
+  
+  %% [bra] and [wbra]
 interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
   Covering =
     case WeakFlag of
       % La is whole set
       strong -> [{LiSi, []}];
       % otherwise La,Lb partitions where La is non-empty
-      % Compute the two covering, of which the last has Ia = \emptyset so drop it
-      weakWeak -> keepTwo(threeCovering(LiSi));
-      weak     -> lists:droplast(twoCovering(LiSi))
+      % Compute the two covering, of which the last has Ia = \emptyset so drop it      
+      weak     -> lists:droplast(twoCovering(LiSi));
+      combining -> lists:droplast(twoCovering(LiSi))
     end,
   Possibilities = for(Covering,
     fun ({Ia, Ib}) ->
@@ -402,8 +421,10 @@ interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
   end),
   case WeakFlag of
     strong     -> lists:concat(Possibilities);
-    _ -> maximalPossibility(Possibilities)
+    weak -> maximalPossibility(Possibilities);
+    combining -> maximalPossibility(Possibilities)
   end;
+  
 %% [rec1]
 interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
   % Top(S1) not a recursion
@@ -418,6 +439,8 @@ interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
                       end
             end)
   end;
+  
+  
  %% [rec3]
 interleaveMain(_, _, _, A, {rec, BV1, S1}, endP) ->
   case wellAsserted(A, {rec, BV1, S1}) and bound({rec, BV1, S1},[]) of
