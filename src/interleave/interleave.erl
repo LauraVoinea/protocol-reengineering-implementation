@@ -366,30 +366,22 @@ interleaveMain(_, _, _, _, {branch, []}, _) -> errorEmptyBranch;
 
   %% [ibra]
 interleaveMain(combining, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
-       JCovering = jBranch(LiSi2),
-       AllCombinations = nCartesian(
-                            for(LiSi1, fun ({Li, Si}) ->
-                                    for(JCovering, fun(Jset) ->
-                                        for(Jset, fun({Lj, Sj}) ->
-                                                     % Find all intereleavings for Si with S2 - put with its label
-                                                     % with possible weakening modes
-                                                    Branches = for(interleaveTop(combining, TL, TR, A, Si, Sj),
-                                                      fun(Sip) -> {Lj, Sip}
-                                                    end),
-                                                    for(Branches, fun(LjSj) -> {branch, LjSj} end)
-                                                  end)
-                                                end)
-                                                
-                                              end)  ),
-                                              
-                                              
-       for(AllCombinations, fun(LiSip) -> {branch, LiSip} end);
-          
-%  for(Results, fun(S) -> S end);
-%  maximalPossibility(Possibilities);
+  RightSubsets = jBranch(LiSi2),
+  % Meat
+  LeftAndRightSubsetCombos =
+     % For each {li : Si}
+     for(LiSi1, fun ({Li, Si}) ->
+        % For each subset of the {lj , Sj} branches
+        for(RightSubsets, fun (Subset) ->
+          % associate with Li a branch...
+          {Li, {branch,
+                 %... all the possibile unique {lj, Sj} pairs where Si and Sj compose
+                 nub([{Lj, S} || {Lj, Sj} <- Subset, S <- interleaveMain(combining, TL, TR, A, Si, Sj)])}}
+        end)
+      end),
+% Now choose all combiations across branches
+for(nCartesian(LeftAndRightSubsetCombos), fun (Branches) -> {branch, Branches} end);
 
- 
-  
   %% [bra] and [wbra]
 interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
   Covering =
