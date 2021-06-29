@@ -140,11 +140,36 @@ filterSet(Data) when is_list(Data) ->
 % Finds the subset of J without empty set
 jBranch(J) -> filterSet(power(J)).
 
-% Finds the possible incomplete configurations of J beanches
-jBRanches(J) -> nCartesian(jBranch(J)).
 
-com1() -> {branch, [{a, {consume, a, endP}}, {b, {consume, b, endP}}] }.
-com2() -> {branch, [{a, {assert, a, endP}}, {b, {assert, a, endP}}] }.
+
+
+% Returns true if a bad combo i.e., it has at least an empty branch
+badJCombo1(A) ->
+  Results = for(A, fun({_,{branch, Si}}) ->
+      case Si of
+        [] -> true;
+         _ -> false
+      end
+    end),
+  lists:member(true, Results).
+    
+% Returns true if a bad combo i.e., there is an element in I that is not in any branch Ji
+badJCombo2(A, I) ->
+  Indices = for(A, fun({_,{branch, Js}}) ->
+            for(Js, fun({J, _}) -> J
+            end)
+          end),
+  case lists:usort(lists:flatten(Indices)) =:= lists:usort(lists:flatten(I)) of
+    true -> false;
+    _ -> true
+  end.
+
+
+
+
+
+com1() -> {branch, [{a, {consume, a, endP}}, {b, {consume, b, endP}}, {c, endP} ] }.
+com2() -> {branch, [{aa, {assert, a, endP}}, {bb, {assert, b, endP}}] }.
 
 test({branch, LiSi2}) -> jBranch(LiSi2).
 
@@ -366,6 +391,7 @@ interleaveMain(_, _, _, _, {branch, []}, _) -> errorEmptyBranch;
 
   %% [ibra]
 interleaveMain(combining, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
+  I = for(LiSi2, fun({Li, _}) -> Li end),
   RightSubsets = jBranch(LiSi2),
   % Meat
   LeftAndRightSubsetCombos =
@@ -380,7 +406,20 @@ interleaveMain(combining, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
         end)
       end),
 % Now choose all combiations across branches
-for(nCartesian(LeftAndRightSubsetCombos), fun (Branches) -> {branch, Branches} end);
+ Results = for(nCartesian(LeftAndRightSubsetCombos), fun (Branches) ->
+% check that all Ji are not empty
+              case badJCombo1(Branches) of
+                true -> [];
+% check all Li are covered
+                false ->  case badJCombo2(Branches, I) of
+                            true -> [];
+                            false -> {branch, Branches}
+                          end 
+              end
+ end),
+%remove empty list
+lists:filter(fun(X) -> X /= [] end, Results);
+
 
   %% [bra] and [wbra]
 interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
