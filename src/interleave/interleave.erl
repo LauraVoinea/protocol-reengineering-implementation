@@ -312,15 +312,15 @@ interleave(S1, S2) -> nub(interleaveTop(strong, [], [], [], S1, S2)).
 %% @doc Wraps the main function and passes in empty environments
 interleaveWeak(S1, S2) -> nub(interleaveTop(weak, [], [], [], S1, S2)).
 
--spec interleaveWeakStrong(protocol(), protocol()) -> [protocol ()].
+-spec interleaveAll(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
-interleaveWeakStrong(S1, S2) ->
-    nub(interleaveTop(weakStrong, [], [], [], S1, S2)).
+interleaveAll(S1, S2) ->
+    nub(interleaveTop(all, [], [], [], S1, S2)).
 
--spec interleaveCombine(protocol(), protocol()) -> [protocol ()].
+-spec interleaveCorrelating(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
-interleaveCombine(S1, S2) ->
-    nub(interleaveTop(combining, [], [], [], S1, S2)).
+interleaveCorrelating(S1, S2) ->
+    nub(interleaveTop(correlating, [], [], [], S1, S2)).
 
 
 %% @doc n-way Cartesian product
@@ -386,75 +386,24 @@ interleaveMain(WeakFlag, TL, TR, A, {assert, P, S1}, S2) ->
 interleaveMain(_, _, _, _, {branch, []}, _) -> errorEmptyBranch;
 
 
-  % Finds the subset of J without empty set
-% jBranch(J) -> filterSet(power(J)).
-
-  %% [ibra]
-interleaveMain(combining, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
-  I = for(LiSi2, fun({Li, _}) -> Li end),
-  RightSubsets = jBranch(LiSi2),
-  % Meat
-  LeftAndRightSubsetCombos =
-     % For each {li : Si}
-     for(LiSi1, fun ({Li, Si}) ->
-        % For each subset of the {lj , Sj} branches
-        for(RightSubsets, fun (Subset) ->
-          % associate with Li a branch...
-          {Li, {branch,
-                 %... all the possibile unique {lj, Sj} pairs where Si and Sj compose
-                 nub([{Lj, S} || {Lj, Sj} <- Subset, S <- interleaveMain(combining, TL, TR, A, Si, Sj)])}}
-        end)
-      end),
-% Now choose all combiations across branches
- Results = for(nCartesian(LeftAndRightSubsetCombos), fun (Branches) ->
-% check that all Ji are not empty
-              case badJCombo1(Branches) of
-                true -> [];
-% check all Li are covered
-                false ->  case badJCombo2(Branches, I) of
-                            true -> [];
-                            false -> {branch, Branches}
-                          end 
-              end
- end),
-%remove empty list
-lists:filter(fun(X) -> X /= [] end, Results);
-
-
-  %% [bra] and [wbra]
-interleaveMain(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
-  Covering =
-    case WeakFlag of
-      % La is whole set
-      strong -> [{LiSi, []}];
-      % otherwise La,Lb partitions where La is non-empty
-      % Compute the two covering, of which the last has Ia = \emptyset so drop it      
-      weak     -> lists:droplast(twoCovering(LiSi));
-      combining -> lists:droplast(twoCovering(LiSi))
-    end,
-  Possibilities = for(Covering,
-    fun ({Ia, Ib}) ->
-    % Good parition if all Sb are well asserted
-    case lists:all(fun ({_, Sib}) -> wellAsserted(A, Sib) end, Ib) of
-      % Good parition
-      true -> AllCombinations = nCartesian(for(Ia,
-                    fun ({Li, Si}) ->
-                    % Find all intereleavings for Si with S2 - put with its label
-                    % with possible weakening modes
-                    for(interleaveTop(WeakFlag, TL, TR, A, Si, S2),
-                          fun(Sip) -> {Li, Sip} end)
-                    end)),
-        for(AllCombinations, fun(LiSip) -> {branch, LiSip ++ Ib} end);
-
-      % Bad partition Ib is not all well-asserted
-      false -> []
-    end
-  end),
+interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
   case WeakFlag of
-    strong     -> lists:concat(Possibilities);
-    weak -> maximalPossibility(Possibilities);
-    combining -> maximalPossibility(Possibilities)
-  end;
+    strong -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
+    weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
+    correlating -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
+    all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}))
+  end;  
+
+
+interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2) ->
+  case WeakFlag of
+    strong -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
+    weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
+    correlating -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
+    all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2)  ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2))
+  end;  
+
+
   
 %% [rec1]
 interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
@@ -494,6 +443,87 @@ interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
   end;
 %% check top and well assertedness
 interleaveMain(_, _, _, _, _, _) -> [].
+
+
+ %% [bra] 
+intStrong(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
+  Covering = [{LiSi, []}],
+  Possibilities = for(Covering,
+    fun ({Ia, Ib}) ->
+    % Good parition if all Sb are well asserted
+    case lists:all(fun ({_, Sib}) -> wellAsserted(A, Sib) end, Ib) of
+      % Good parition
+      true -> AllCombinations = nCartesian(for(Ia,
+                    fun ({Li, Si}) ->
+                    % Find all intereleavings for Si with S2 - put with its label
+                    % with possible weakening modes
+                    for(interleaveTop(WeakFlag, TL, TR, A, Si, S2),
+                          fun(Sip) -> {Li, Sip} end)
+                    end)),
+        for(AllCombinations, fun(LiSip) -> {branch, LiSip ++ Ib} end);
+
+      % Bad partition Ib is not all well-asserted
+      false -> []
+    end
+  end),
+  lists:usort(lists:concat(Possibilities)).
+
+ 
+  %% [wbra]
+intWeak(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
+  Covering = lists:droplast(twoCovering(LiSi)),
+  Possibilities = for(Covering,
+    fun ({Ia, Ib}) ->
+    % Good parition if all Sb are well asserted
+    case lists:all(fun ({_, Sib}) -> wellAsserted(A, Sib) end, Ib) of
+      % Good parition
+      true -> AllCombinations = nCartesian(for(Ia,
+                    fun ({Li, Si}) ->
+                    % Find all intereleavings for Si with S2 - put with its label
+                    % with possible weakening modes
+                    for(interleaveTop(WeakFlag, TL, TR, A, Si, S2),
+                          fun(Sip) -> {Li, Sip} end)
+                    end)),
+        for(AllCombinations, fun(LiSip) -> {branch, LiSip ++ Ib} end);
+
+      % Bad partition Ib is not all well-asserted
+      false -> []
+    end
+  end),
+  maximalPossibility(Possibilities).
+
+
+%% [cbra]
+intCorrelating(WeakFlag, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
+  I = for(LiSi2, fun({Li, _}) -> Li end),
+  RightSubsets = jBranch(LiSi2),
+  % Meat
+  LeftAndRightSubsetCombos =
+     % For each {li : Si}
+     for(LiSi1, fun ({Li, Si}) ->
+        % For each subset of the {lj , Sj} branches
+        for(RightSubsets, fun (Subset) ->
+          % associate with Li a branch...
+          {Li, {branch,
+                 %... all the possibile unique {lj, Sj} pairs where Si and Sj compose
+                 nub([{Lj, S} || {Lj, Sj} <- Subset, S <- interleaveMain(WeakFlag, TL, TR, A, Si, Sj)])}}
+        end)
+      end),
+  % Now choose all combiations across branches
+  Results = for(nCartesian(LeftAndRightSubsetCombos), fun (Branches) ->
+              % check that inner branching is non empty for all Li (in the paper Ji =\= 0 )
+              case badJCombo1(Branches) of
+                true -> [];
+                % check all branches of J are covered in the I branches overall (in the paper U_{j\in J} = J)
+                false ->  case badJCombo2(Branches, I) of
+                            true -> [];
+                            false -> {branch, Branches}
+                          end 
+              end
+ end),
+%remove empty list
+lists:filter(fun(X) -> X /= [] end, Results).
+
 
 % Factorization - ongoing work
 %[Fprex1]
