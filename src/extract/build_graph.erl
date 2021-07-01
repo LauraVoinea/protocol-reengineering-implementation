@@ -9,53 +9,55 @@ parse_file(File) ->
    {ok, ParsedFile} = epp:parse_file(File, []),
    Behaviour = lists:keyfind(behaviour, 3, ParsedFile),
    Behavior = lists:keyfind(behavior, 3, ParsedFile),
-
+   Fun = fun({Line, Column, Indent, Text }, Cs) -> Key = Line + length(Text), 
+                                maps:put(Key, {Line, Column, Indent, Text }, Cs) end,
+   Comms = lists:foldl(Fun, maps:new(), erl_comment_scan:file(File)),
    case Behaviour of
-          {attribute, _, _, gen_server} -> parse_gen_server(ParsedFile);
-          {attribute, _, _, gen_fsm} -> parse_gen_fsm(ParsedFile);
-          {attribute, _, _, gen_statem} -> parse_gen_statem(ParsedFile);
-          {attribute, _, _, gen_event} -> parse_gen_event(ParsedFile);
+          {attribute, _, _, gen_server} -> parse_gen_server(ParsedFile, Comms);
+          {attribute, _, _, gen_fsm} -> parse_gen_fsm(ParsedFile, Comms);
+          {attribute, _, _, gen_statem} -> parse_gen_statem(ParsedFile, Comms);
+          {attribute, _, _, gen_event} -> parse_gen_event(ParsedFile, Comms);
           false ->
             case Behavior of
-              {attribute, _, _, gen_server} -> parse_gen_server(ParsedFile);
-              {attribute, _, _, gen_fsm} -> parse_gen_fsm(ParsedFile);
-              {attribute, _, _, gen_statem} -> parse_gen_statem(ParsedFile);
-              {attribute, _, _, gen_event} -> parse_gen_event(ParsedFile);
+              {attribute, _, _, gen_server} -> parse_gen_server(ParsedFile, Comms);
+              {attribute, _, _, gen_fsm} -> parse_gen_fsm(ParsedFile, Comms);
+              {attribute, _, _, gen_statem} -> parse_gen_statem(ParsedFile, Comms);
+              {attribute, _, _, gen_event} -> parse_gen_event(ParsedFile, Comms);
               false -> {error, not_otp}
             end
         end.
 
-parse_gen_server(_TokenList) -> {error, not_supported}.
+parse_gen_server(_TokenList, _Comms) -> {error, not_supported}.
 
-parse_gen_statem(TokenList) ->
+parse_gen_statem(TokenList, Comms) ->
   Type = gen_statem,
   Fun = fun({function, _, init, 1, Clauses}, Acc) ->
-              parse_function_add_edges(Clauses, init, [async], Type, Acc);
+              parse_function_add_edges(Clauses, init, [async], Type, Comms , Acc);
            ({function, _, handle_event = FnName, 4, Clauses}, Acc) ->
-              parse_function_add_node_and_edges(Clauses, FnName, [], Type, Acc);
+              parse_function_add_node_and_edges(Clauses, FnName, [], Type, Comms, Acc);
            ({function, _, FnName, 3, Clauses}, Acc) ->
-              parse_function_add_node_and_edges(Clauses, FnName, [], Type, Acc);
+              parse_function_add_node_and_edges(Clauses, FnName, [], Type, Comms, Acc);
            (_Other, {OldNodes, OldEdges, OldAllStates}) ->
               {OldNodes, OldEdges, OldAllStates}
         end,
     Graph = generic_parse(TokenList, Fun),
     {parsed, Type, Graph}.
 
-parse_gen_fsm(TokenList) ->
+parse_gen_fsm(TokenList, Comms) ->
   Type = gen_fsm,
   Fun =
     fun({function, _, init, 1, Clauses}, Acc) ->
-          parse_function_add_edges(Clauses, init, [async], Type, Acc);
+          parse_function_add_edges(Clauses, init, [async], Type, Comms, Acc);
        ({function, _, handle_event, 3, Clauses}, Acc) ->
-          parse_function_add_states(Clauses, handle_event, [async, allstate], Type, Acc);
+          parse_function_add_states(Clauses, handle_event, [async, allstate], Type, Comms, Acc);
        ({function, _, handle_sync_event, 4, Clauses}, Acc) ->
-          parse_function_add_states(Clauses, handle_sync_event, [sync, allstate], Type, Acc);
+          parse_function_add_states(Clauses, handle_sync_event, [sync, allstate], Type, Comms, Acc);
        ({function, _, handle_info, 3, Clauses}, Acc) ->
-          parse_function_add_states(Clauses, handle_info, [async, allstate, info], Type, Acc);
+          parse_function_add_states(Clauses, handle_info, [async, allstate, info], Type, Comms, Acc);
        ({function, _, FnName, 2, Clauses}, Acc) ->
-          parse_function_add_node_and_edges(Clauses, FnName, [async], Type, Acc);
+          parse_function_add_node_and_edges(Clauses, FnName, [async], Type, Comms, Acc);
        ({function, _, FnName, 3, Clauses}, Acc) ->
-          parse_function_add_node_and_edges(Clauses, FnName, [sync], Type, Acc);
+          parse_function_add_node_and_edges(Clauses, FnName, [sync], Type, Comms, Acc);
        (_Other, {OldNodes, OldEdges, OldAllStates}) ->
             {OldNodes, OldEdges, OldAllStates}
     end,
@@ -63,8 +65,6 @@ parse_gen_fsm(TokenList) ->
     {parsed, Type, Graph}.
 
 generic_parse(TokenList, Fun) ->
-  Comments = erl_comment_scan:scan_lines(TokenList),
-  io:format("~p~n", [Comments]),
   Graph = digraph:new(),
   {States, Edges, AllStateEdges} = lists:foldl(Fun, {[init, terminate],[],[]}, TokenList),
   NewAllStateEdges = expand_allstates(AllStateEdges, States),
@@ -79,33 +79,33 @@ generic_parse(TokenList, Fun) ->
                 end, remove_dups(Edges ++ NewAllStateEdges)),
   Graph.
 
-parse_gen_event(_TokenList) ->
+parse_gen_event(_TokenList, _Comms) ->
   {error, not_supported}.
 
-parse_function_add_states(Clauses, FnName, Options, Type,
+parse_function_add_states(Clauses, FnName, Options, Type, Comms,
                           {OldNodes, OldEdges, OldAllStates}) ->
-  case parse_function(Clauses, FnName, Options, Type) of
+  case parse_function(Clauses, FnName, Options, Type, Comms) of
     {error, _Reason} -> {OldNodes, OldEdges, OldAllStates};
     NewEdges -> {OldNodes, OldEdges, OldAllStates ++ NewEdges}
   end.
 
-parse_function_add_edges(Clauses, FnName, Options, Type,
+parse_function_add_edges(Clauses, FnName, Options, Type, Comms, 
                           {OldNodes, OldEdges, OldAllStates}) ->
-  case parse_function(Clauses, FnName, Options, Type) of
+  case parse_function(Clauses, FnName, Options, Type, Comms) of
     {error, _Reason} -> {OldNodes, OldEdges, OldAllStates};
     NewEdges -> {OldNodes, OldEdges ++ NewEdges, OldAllStates}
   end.
 
-parse_function_add_node_and_edges(Clauses, FnName, Options, Type,
+parse_function_add_node_and_edges(Clauses, FnName, Options, Type, Comms, 
                                   {OldNodes, OldEdges, OldAllStates}) ->
-  case parse_function(Clauses, FnName, Options, Type) of
+  case parse_function(Clauses, FnName, Options, Type, Comms) of
     {error, _Reason} -> {OldNodes, OldEdges, OldAllStates};
     NewEdges -> {[FnName|OldNodes], OldEdges ++ NewEdges, OldAllStates}
   end.
 
-parse_function(Clauses, FnName, Options, Type) ->
+parse_function(Clauses, FnName, Options, Type, Comms) ->
   Edges = lists:foldl(fun(Clause, AccIn) ->
-               [parse_function_clause(Clause, FnName, Options, Type) | AccIn]
+               [parse_function_clause(Clause, FnName, Options, Type, Comms) | AccIn]
               end, [], Clauses),
   FlatEdges = lists:flatten(Edges),
 
@@ -114,8 +114,8 @@ parse_function(Clauses, FnName, Options, Type) ->
     true -> {error, not_a_state}
   end.
 
-parse_function_clause({clause, _Line, Args, Guards, Body},
-                      init, _Options, Type) ->
+parse_function_clause({clause, Line, Args, Guards, Body},
+                      init, _Options, Type, Comms) ->
   Fun = fun({ok, NextState, init}) ->
           PrettyGuards = lists:map(fun(G) -> erl_pp:guard(G) end, Guards),
           PrettyBody = erl_pp:exprs(Body),
@@ -130,12 +130,13 @@ parse_function_clause({clause, _Line, Args, Guards, Body},
               pattern = Args,
               guard = PrettyGuards,
               code = PrettyBody,
-              attributes = [async]}
+              attributes = [async],
+              comments = maps:get(Line, Comms, {})}
           }
         end,
   map_parse_func(Fun, init, Body, Type);
-parse_function_clause({clause, _Line, [Event | Args], Guards, Body},
-                      handle_info, Options, gen_fsm) ->
+parse_function_clause({clause, Line, [Event | Args], Guards, Body},
+                      handle_info, Options, gen_fsm, Comms) ->
   Fun = fun({ok, NextState, RetType}) ->
           PrettyGuards = lists:map(fun(G) -> erl_pp:guard(G) end, Guards),
           PrettyBody = erl_pp:exprs(Body),
@@ -151,12 +152,13 @@ parse_function_clause({clause, _Line, [Event | Args], Guards, Body},
               pattern = Args,
               guard = PrettyGuards,
               code = PrettyBody,
-              attributes = [RetType|Options]}
+              attributes = [RetType|Options],
+              comments = maps:get(Line, Comms, {})}
           }
         end,
   map_parse_func(Fun, handle_info, Body, gen_fsm);
-parse_function_clause({clause, _Line, [_EventType, State, Event | Args], Guards, Body},
-                      handle_event, Options, gen_statem) ->
+parse_function_clause({clause, Line, [_EventType, State, Event | Args], Guards, Body},
+                      handle_event, Options, gen_statem, Comms) ->
   Fun = fun({ok, NextState, RetType}) ->
           PrettyGuards = lists:map(fun(G) -> erl_pp:guard(G) end, Guards),
           PrettyBody = erl_pp:exprs(Body),
@@ -172,12 +174,13 @@ parse_function_clause({clause, _Line, [_EventType, State, Event | Args], Guards,
               pattern = Args,
               guard = PrettyGuards,
               code = PrettyBody,
-              attributes = [RetType|Options]}
+              attributes = [RetType|Options],
+              comments = maps:get(Line, Comms, {})}
           }
         end,
   map_parse_func(Fun, handle_info, Body, gen_fsm);
-parse_function_clause({clause, _Line, [Event | Args], Guards, Body},
-                      FnName, Options, gen_fsm) ->
+parse_function_clause({clause, Line, [Event | Args], Guards, Body},
+                      FnName, Options, gen_fsm, Comms) ->
   Fun = fun({ok, NextState, _}) ->
           PrettyGuards = lists:map(fun(G) -> erl_pp:guard(G) end, Guards),
           PrettyBody = erl_pp:exprs(Body),
@@ -193,12 +196,13 @@ parse_function_clause({clause, _Line, [Event | Args], Guards, Body},
               pattern = Args,
               guard = PrettyGuards,
               code = PrettyBody,
-              attributes = Options}
+              attributes = Options, 
+              comments = maps:get(Line, Comms, {})}
           }
         end,
   map_parse_func(Fun, FnName, Body, gen_fsm);
-parse_function_clause({clause, _Line, [_Call, Event | Args], Guards, Body},
-                      FnName, Options, gen_statem) ->
+parse_function_clause({clause, Line, [_Call, Event | Args], Guards, Body},
+                      FnName, Options, gen_statem, Comms) ->
   Fun = fun({ok, NextState, _}) ->
           PrettyGuards = lists:map(fun(G) -> erl_pp:guard(G) end, Guards),
           PrettyBody = erl_pp:exprs(Body),
@@ -211,7 +215,8 @@ parse_function_clause({clause, _Line, [_Call, Event | Args], Guards, Body},
                                                           pattern = Args,
                                                           guard = PrettyGuards,
                                                           code = PrettyBody,
-                                                          attributes = Options}
+                                                          attributes = Options, 
+                                                          comments = maps:get(Line, Comms, {})}
                                                       }
         end,
   map_parse_func(Fun, FnName, Body, gen_statem).
