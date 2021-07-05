@@ -23,7 +23,7 @@ cons({_, _, _, Text}, Protocol) ->
                           [_One, _Two, _Three | _Tail] -> P
                         end
         end,
-  lists:foldl(Fun, Protocol, Text).
+  lists:foldr(Fun, Protocol, Text).
 
 rec(V, G, Cs, RecMap, Cyc) when is_list(Cyc) ->
   In = digraph:in_degree(G, V),

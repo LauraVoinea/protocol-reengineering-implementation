@@ -12,7 +12,9 @@ end_state() -> end_state.
 %% takes a protocol and returns a list of transitions/edges and nodes/states
 -spec to_fsm(interleave:protocol()) -> {list(), map()}.
 to_fsm(P) ->
-  {Edges, Nodes, _, _, _, _, _} = to_fsm(P, [], maps:new(), maps:new(), 1, 1, -1, []),
+  Edge = #edge{from = 0, to = 1, edge_data = #edge_data{event = init, event_type = init}},
+  {Edges, Nodes, _, _, _, _} = to_fsm(P, [Edge], maps:put(0, init_state, maps:new()), maps:new(), 1, 1, -1),
+  % {Edges, Nodes, _, _, _, _, _} = to_fsm(P, [], maps:new(), maps:new(), 1, 1, -1, []),
   {Edges, Nodes}.
 
 %% @doc processes the actions and labels names and sets the event,
@@ -41,62 +43,65 @@ args(Param) ->
 
 %% @doc Checks whether there are any constraints; adds them to the trans record
 %% calls args.
--spec data(atom(), list()) -> {atom(), string(), atom()}.
-data(Param, Cons) when Cons =/= [] ->
+-spec data(atom()) -> {atom(), string(), atom()}.
+data(Param) ->
   {Act, Var, Event} = args(Param),
-  #data{action = Act, var = list_to_atom(Var), event = Event, cons = Cons};
-data(Param, _Cons) ->
-  {Act, Var, Event} = args(Param),
-  #data{action = Act, var = list_to_atom(Var), event = Event}.
+  #edge_data{event = {Act, list_to_atom(Var)}, event_type = Event}.
 
 %% @doc transform the protocol to a list of transitions between states and a
 %% map of nodes, easier to work with in generate
 -spec to_fsm(interleave:protocol(), list(), map(), map(), integer(), integer(),
-  integer(), list()) -> {list(), map(), map(), integer(), integer(), integer(), list()}.
-to_fsm({act, Act, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+  integer()) -> {list(), map(), map(), integer(), integer(), integer()}.
+to_fsm({act, Act, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
     Index = PrevIndex + 1,
-    Edge = #trans{from = PrevVis, to = Index, data = data(Act, Cons)},
+    Edge = #edge{from = PrevVis, to = Index, edge_data = data(Act)},
     Edges1 = Edges ++ [Edge],
     Nodes1 = maps:put(PrevVis, standard_state(), Nodes),
-    to_fsm(P, Edges1, Nodes1, RecMap, Index, Index, EndIndex, []);
-to_fsm({branch, Branches}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+    to_fsm(P, Edges1, Nodes1, RecMap, Index, Index, EndIndex);
+to_fsm({branch, Branches}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
     Index = PrevIndex + 1,
     Nodes1 = maps:put(PrevVis, choice_state(), Nodes),
-    lists:foldl(fun({Label, P1}, {E, N, R, I, _, EI, C}) ->
+    lists:foldl(fun({Label, P1}, {E, N, R, I, _, EI}) ->
       I1 = I + 1,
-      Edge = #trans{from = PrevVis, to = I1, data = data(Label, C)},
+      Edge = #edge{from = PrevVis, to = I1, edge_data = data(Label)},
       E1 = E ++ [Edge],
-      to_fsm(P1, E1, N, R, I1, I1, EI, []) end,
-      % to_fsm(P1, E, N, R, PrevVis, I, EI, []) end,
-      {Edges, Nodes1, RecMap, PrevIndex, Index, EndIndex, Cons}, Branches);
-to_fsm({rec, BoundVar, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+      to_fsm(P1, E1, N, R, I1, I1, EI) end,
+      {Edges, Nodes1, RecMap, PrevIndex, Index, EndIndex}, Branches);
+to_fsm({rec, BoundVar, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
     RecMap1 = maps:put(BoundVar, PrevVis, RecMap),
-    to_fsm(P, Edges, Nodes, RecMap1, PrevIndex, PrevVis, EndIndex, Cons);
-to_fsm({rvar, Var}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+    to_fsm(P, Edges, Nodes, RecMap1, PrevIndex, PrevVis, EndIndex);
+to_fsm({rvar, Var}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
     RecIndex = maps:get(Var, RecMap),
     LastEdge = lists:last(Edges),
-    Edge = LastEdge#trans{to=RecIndex},
+    Edge = LastEdge#edge{to=RecIndex},
     Edges1 = lists:droplast(Edges) ++ [Edge],
-    {Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons};
-to_fsm(endP, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
+    {Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex};
+to_fsm(endP, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
     if
       EndIndex =:= -1 ->
         Nodes1 = maps:put(PrevVis, end_state(), Nodes),
-        {Edges, Nodes1, RecMap, PrevIndex, PrevVis, PrevVis, Cons};
+        {Edges, Nodes1, RecMap, PrevIndex, PrevVis, PrevVis};
       EndIndex =/= -1 ->
          LastEdge = lists:last(Edges),
-         Edge = LastEdge#trans{to = EndIndex},
+         Edge = LastEdge#edge{to = EndIndex},
          Edges1 = lists:droplast(Edges) ++ [Edge],
-        {Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons}
+        {Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex}
     end;
-to_fsm({assert, N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
-    Cons1 = Cons ++ [{assert, N}],
-    to_fsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons1);
-to_fsm({require, N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
-    Cons1 = Cons ++ [{require, N}],
-    to_fsm(P, Edges, Nodes,  RecMap, PrevIndex, PrevVis, EndIndex, Cons1);
-to_fsm({consume, N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
-    Cons1 = Cons ++ [{consume, N}],
-    to_fsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons1);
-to_fsm({_, _, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons) ->
-    to_fsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex, Cons).
+to_fsm({assert, N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+    LastEdge = lists:last(Edges),
+    EdgeData = LastEdge#edge.edge_data#edge_data{comments = LastEdge#edge.edge_data#edge_data.comments ++ [{assert, N}]},
+    Edge = LastEdge#edge{edge_data = EdgeData},
+    Edges1 = lists:droplast(Edges) ++ [Edge],
+    to_fsm(P, Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex);
+to_fsm({require, N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+    LastEdge = lists:last(Edges),
+    EdgeData = LastEdge#edge.edge_data#edge_data{comments = LastEdge#edge.edge_data#edge_data.comments ++ [{require, N}]},
+    Edge = LastEdge#edge{edge_data = EdgeData},    Edges1 = lists:droplast(Edges) ++ [Edge],
+    to_fsm(P, Edges1, Nodes,  RecMap, PrevIndex, PrevVis, EndIndex);
+to_fsm({consume, N, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+    LastEdge = lists:last(Edges),
+    EdgeData = LastEdge#edge.edge_data#edge_data{comments = LastEdge#edge.edge_data#edge_data.comments ++ [{consume, N}]},
+    Edge = LastEdge#edge{edge_data = EdgeData},    Edges1 = lists:droplast(Edges) ++ [Edge],
+    to_fsm(P, Edges1, Nodes, RecMap, PrevIndex, PrevVis, EndIndex);
+to_fsm({_, _, P}, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex) ->
+    to_fsm(P, Edges, Nodes, RecMap, PrevIndex, PrevVis, EndIndex).

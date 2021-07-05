@@ -15,7 +15,7 @@
 
 -module(merl_build).
 
--export([init_module/1, module_forms/1, add_function/5, add_record/3,
+-export([init_module/1, module_forms/1, add_function/4, add_record/3,
          add_import/3, add_attribute/3, set_file/2]).
 
 -import(merl, [term/1]).
@@ -31,7 +31,7 @@
                 , attributes=[] :: [{filename(), atom(), [term()]}]
                 , records=[]    :: [{filename(), atom(),
                                      [{atom(), merl:tree()}]}]
-                , functions=[]  :: [{filename(), atom(), [merl:tree()], [string()]}]
+                , functions=[]  :: [{filename(), atom(), [merl:tree()]}]
                 }).
 
 %% TODO: init module from a list of forms (from various sources)
@@ -68,11 +68,8 @@ module_forms(#module{name=Name,
                            || {F,V} <- Es]]
               ],
     Functions = [?Q("'@_F'() -> [].")
-                 || {_File, N, Cs, Coms} <- lists:reverse(Fs),
-                    F <- [erl_syntax:add_precomments(
-                  % [erl_syntax:comment(Coms)],
-                  lists:map(fun(Com) -> erl_syntax:comment(Com) end, Coms),
-                    erl_syntax:function(term(N), Cs))]],
+                 || {_File, N, Cs} <- lists:reverse(Fs),
+                  F <- [erl_syntax:function(term(N), Cs)]],
     lists:flatten([Module, Attrs, Export, Imports, Records, Functions]).
 
 %% @doc Set the source file name for all subsequently added functions,
@@ -81,7 +78,7 @@ set_file(Filename, #module{}=M) ->
     M#module{file=filename:flatten(Filename)}.
 
 %% @doc Add a function to a module representation.
-add_function(Exported, Name, Clauses, Comms,
+add_function(Exported, Name, Clauses,
              #module{file=File, exports=Xs, functions=Fs}=M)
   when is_boolean(Exported), is_atom(Name), Clauses =/= [] ->
     Arity = length(erl_syntax:clause_patterns(hd(Clauses))),
@@ -89,7 +86,7 @@ add_function(Exported, Name, Clauses, Comms,
               true -> [{Name,Arity} | Xs];
               false -> Xs
           end,
-    M#module{exports=Xs1, functions=[{File, Name, Clauses, Comms} | Fs]}.
+    M#module{exports=Xs1, functions=[{File, Name, Clauses} | Fs]}.
 
 %% @doc Add a record declaration to a module representation.
 add_record(Name, Fields, #module{file=File, records=Rs}=M)
