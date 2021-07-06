@@ -52,7 +52,7 @@ e10() ->
                                ,{r, {rvar, "y"}}]}}}.
 
 bank() ->
-  {require, pin, {rec, t, {branch, [{payment, {consume, tan,{act, r_payment,  {rvar, t}}}},
+  {require, pin, {rec, t, {branch, [{payment, {assert, pay, {consume, tan,{act, r_payment,  {rvar, t}}}}},
                                           {statement, {act, s_statement, {rvar, t}}},
                                           {logout, endP}]
                           }
@@ -61,17 +61,17 @@ bank() ->
 
 pintan() ->
   {act, r_pin, {branch, [
-                                    {ok, {assert, pin, {rec, r, ctan()}}},
-                                    {fail, endP}]
+                                    {pok, {assert, pin, {rec, r, ctan()}}},
+                                    {pfail, endP}]
                 }
   }.
 
 ctan() ->
-  {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
-                                            {fail, {rvar, r}}]
+  {consume, pay, {act, s_id, {act, r_tan, {branch, [{tok, {assert, tan, {rvar, r}}},
+                                            {tfail, {rvar, r}}]
                             }
               }
-  }.
+  }}.
 
 pin() ->
   {act, r_pin, {branch, [{ok, {assert, pin, endP}},
@@ -100,6 +100,15 @@ agent2() -> {consume, n, {branch, [{s_ai_set, {consume, set, {act, s_ai_coord, {
             
             
 
+userAgent() -> {rec, r, {branch, [  {ua_r_set, {act, ua_r_coord, {assert, set, {rvar, r}}}},
+                                    {ua_r_get, {assert, get, {consume, snap, {act, au_s_snap, {rvar, r}}}}},
+                                    {ua_r_close, {assert, close, endP}}
+]}}.
+
+agentInstrument() -> {rec, t, {branch, [  {ai_s_set, {consume, set, {act, ai_s_coord, {rvar, t}}}},
+                                          {ai_s_get, {consume, get, {act, ai_r_snap, {assert, snap, {rvar, t}}}}},
+                                          {ui_s_close, {consume, close, endP}}
+]}}.
 
 %% @doc Pretty print protocols
 -spec pprint(protocol()) -> string().
@@ -132,16 +141,10 @@ filterSet(Data) when is_list(Data) ->
     lists:filter(Pred, Data). 
 
 
-     
-
-
-%% convolute partition
+    
 
 % Finds the subset of J without empty set
 jBranch(J) -> filterSet(power(J)).
-
-
-
 
 % Returns true if a bad combo i.e., it has at least an empty branch
 badJCombo1(A) ->
@@ -172,6 +175,23 @@ com1() -> {branch, [{a, {consume, a, endP}}, {b, {consume, b, endP}}, {c, endP} 
 com2() -> {branch, [{aa, {assert, a, endP}}, {bb, {assert, b, endP}}] }.
 
 test({branch, LiSi2}) -> jBranch(LiSi2).
+
+
+
+%% @doc Strip assertions
+-spec strip(protocol()) -> protocol().
+strip({act, N, P}) -> {act, N, strip(P)};
+strip({assert, _, P}) -> strip(P);
+strip({require, _, P}) -> strip(P);
+strip({consume, _, P}) -> strip(P);
+strip({branch, LiSi}) -> 
+  {branch, for(LiSi, fun({Li, Si}) -> {Li, strip(Si)} end)};
+strip({rec, BV3, P}) -> {rec, BV3, strip(P)};
+strip(P) -> P. 
+
+stripSet([]) -> [];
+stripSet([X|XX]) -> [strip(X)] ++ stripSet(XX).
+
 
 
 %% @doc Substitution
