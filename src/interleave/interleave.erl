@@ -51,27 +51,18 @@ e10() ->
   {rec, "y", {act, a, {branch, [{l, {act, b, {require, n, endP}}}
                                ,{r, {rvar, "y"}}]}}}.
 
-% bank() ->
-%   {require, pin, {rec, t, {branch, [{payment, {consume, tan,{act, r_payment,  {rvar, t}}}},
-%                                           {statement, {act, s_statement, {rvar, t}}},
-%                                           {logout, endP}]
-%                           }
-%                   }
-%   }.
-
 bank() ->
-  {require, pin, {rec, t, {branch, [{payment, {act, r_details, {consume, tan,  {rvar, t}}}},
-                                          {statement, {act, s_statement, {rvar, t}}},
-                                          {logout, {consume, pin, endP}}]
+  {require, pin, {rec, t, {branch, [{statement, {act, s_statement, {rvar, t}}},
+                                    {payment, {assert, pay,{consume, tan,{act, r_details,  {rvar, t}}}}},
+                                    {logout, {consume, pin, endP}}]
                           }
                   }
   }.
 
-
 pintan() ->
   {act, r_pin, {branch, [
-                                    {ok, {assert, pin, {rec, r, ctan()}}},
-                                    {fail, endP}]
+                          {ok, {assert, pin, {rec, r, {consume, pay, ctan()}}}},
+                          {fail, endP}]
                 }
   }.
 
