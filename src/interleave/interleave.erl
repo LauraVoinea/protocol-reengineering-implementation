@@ -60,11 +60,7 @@ e10() ->
 %   }.
 
 bank() ->
-<<<<<<< HEAD
-  {require, pin, {rec, t, {branch, [{payment, {assert, pay, {consume, tan,{act, r_payment,  {rvar, t}}}}},
-=======
   {require, pin, {rec, t, {branch, [{payment, {act, r_details, {consume, tan,  {rvar, t}}}},
->>>>>>> b17763aa0b0fd12f9dc2ef3da3bd2b6c6921d1f8
                                           {statement, {act, s_statement, {rvar, t}}},
                                           {logout, {consume, pin, endP}}]
                           }
