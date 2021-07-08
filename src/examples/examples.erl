@@ -1,7 +1,7 @@
 -module(examples).
 
 -export([e1/0, e2/0, e3/0, e4/0, e5/0, e6/0, e7/0, e8/0, e9/0, e10/0,
-          bank/0, pintan/0, pin/0, tan/0, agent1/0, agent2/0]).
+          bank/0, pintan/0, pin/0, tan/0, bank_pt/0, agent1/0, agent2/0]).
 
 
 
@@ -73,6 +73,24 @@ tan() ->
                           }
                   }
   }.
+
+
+bank_pt() -> {act,r_pin,
+{branch,
+ [{ok,
+   {assert,pin,
+    {require,pin,
+     {rec,t,
+        {branch,
+         [{payment, 
+         {act,s_id,
+         {act,r_tan,
+           {branch,
+            [{ok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
+             {fail,{rvar,t}}]}}}},
+          {statement,{act, s_statement,{rvar,t}}},
+          {logout,{consume,pin,endP}}]}}}}},
+  {fail,endP}]}}.
 
 agent1() -> {branch, [{r_ua_set_ua_set, {assert, n, {assert, set, {act, r_ua_coord, {assert, coord, {act, s_au_state, endP}}}}}},
                                {r_ua_get, {assert, n, {assert, get,{act, s_au_snap, {assert, snap, endP}}}}},
