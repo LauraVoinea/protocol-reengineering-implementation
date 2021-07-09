@@ -52,15 +52,9 @@ e10() ->
                                ,{r, {rvar, "y"}}]}}}.
 
 bank() ->
-<<<<<<< HEAD
-  {require, pin, {rec, t, {branch, [{payment, {act, r_details, {consume, tan,  {rvar, t}}}},
-                                          {statement, {act, s_statement, {rvar, t}}},
-                                          {logout, {consume, pin, endP}}]
-=======
   {require, pin, {rec, t, {branch, [{statement, {act, s_statement, {rvar, t}}},
                                     {payment, {assert, pay,{consume, tan,{act, r_details,  {rvar, t}}}}},
                                     {logout, {consume, pin, endP}}]
->>>>>>> 2f583338446fac31ee717d891e836fd4ae6c46f8
                           }
                   }
   }.
@@ -73,11 +67,61 @@ pintan() ->
   }.
 
 ctan() ->
-  {consume, pay, {act, s_id, {act, r_tan, {branch, [{tok, {assert, tan, {rvar, r}}},
+   {act, s_id, {act, r_tan, {branch, [{tok, {assert, tan, {rvar, r}}},
                                             {tfail, {rvar, r}}]
                             }
               }
-  }}.
+  }.
+
+bankauth() ->
+{act,r_pin,
+ {branch,
+  [{ok,
+    {assert,pin,
+     {require,pin,
+      {rec,t,
+       {require, keyp, 
+       {branch,
+        [{payment,
+          {assert,pay,
+           {consume,pay,
+            {act,s_id,
+             {act,r_tan,
+              {branch,
+               [{tok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
+                {tfail,{rvar,t}}]}}}}}},
+         {statement,{act,s_statement,{rvar,t}}},
+         {logout,{consume,pin,endP}}]}}}}}},
+   {fail,endP}]}
+   }.
+   
+bankauthsimple() ->
+{act,r_pin,
+ {branch,
+  [{ok,
+      {rec,t,
+          {branch,
+              [ {payment, {assert, keyp, {require, tb, {act,s_id, {act,r_tan, {branch,
+                                      [  {tok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
+                                          {tfail,{rvar,t}}
+                                      ]}}
+                          }
+                }}},
+                {statement,{act,s_statement,{rvar,t}}},
+                {logout,{consume,pin,endP}}]
+            }
+        }},
+    {fail,endP}
+  ]
+   }}.
+
+keycard() -> {
+{rec, y, {require, keyp, {branch, [{tan, {assert, tb, {rvar, y}}},
+                                  {keycard, {rvar, y}}
+                                  ]
+                        }}
+          }
+}.
 
 pin() ->
   {act, r_pin, {branch, [{ok, {assert, pin, endP}},
@@ -115,6 +159,9 @@ agentInstrument() -> {rec, t, {branch, [  {ai_s_set, {consume, set, {act, ai_s_c
                                           {ai_s_get, {consume, get, {act, ai_r_snap, {assert, snap, {rvar, t}}}}},
                                           {ui_s_close, {consume, close, endP}}
 ]}}.
+
+  
+
 
 %% @doc Pretty print protocols
 -spec pprint(protocol()) -> string().

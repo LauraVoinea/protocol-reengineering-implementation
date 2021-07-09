@@ -91,6 +91,15 @@ bank_pt() -> {act,r_pin,
           {statement,{act, s_statement,{rvar,t}}},
           {logout,{consume,pin,endP}}]}}}}},
   {fail,endP}]}}.
+  
+  
+  
+  
+keycard() -> {
+{rec, y, {branch, [{tan, {assert, tb, {rvar, y}}},
+                   {keycard, {rvar, y}}]}}
+ 
+}.  
 
 agent1() -> {branch, [{r_ua_set_ua_set, {assert, n, {assert, set, {act, r_ua_coord, {assert, coord, {act, s_au_state, endP}}}}}},
                                {r_ua_get, {assert, n, {assert, get,{act, s_au_snap, {assert, snap, endP}}}}},
