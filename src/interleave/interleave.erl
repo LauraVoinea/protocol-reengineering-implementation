@@ -104,7 +104,8 @@ bankauthsimple() ->
                                       ]}}
                           }}
                 }},
-                {statement,{act,s_statement,{rvar,t}}}
+                {statement,{act,s_statement,{rvar,t}}},
+                 {logout,endP}
                ]
             }
 }.
