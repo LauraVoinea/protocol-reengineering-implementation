@@ -96,32 +96,27 @@ bankauth() ->
    }.
    
 bankauthsimple() ->
-{act,r_pin,
- {branch,
-  [{ok,
-      {rec,t,
+{rec,t,
           {branch,
-              [ {payment, {assert, keyp, {require, tb, {act,s_id, {act,r_tan, {branch,
+              [ {payment, {assert, keyp,  {require, tb, {act,s_id, {act,r_tan, {branch,
                                       [  {tok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
                                           {tfail,{rvar,t}}
                                       ]}}
-                          }
-                }}},
-                {statement,{act,s_statement,{rvar,t}}},
-                {logout,{consume,pin,endP}}]
+                          }}
+                }},
+                {statement,{act,s_statement,{rvar,t}}}
+               ]
             }
-        }},
-    {fail,endP}
-  ]
-   }}.
+}.
 
-keycard() -> {
-{rec, y, {require, keyp, {branch, [{tan, {assert, tb, {rvar, y}}},
-                                  {keycard, {rvar, y}}
+
+
+keycard() -> {rec, y, {require, keyp, {branch, [{tan, {assert, tb, {rvar, y}}},
+                         {keycard, {rvar, y}}
                                   ]
                         }}
-          }
-}.
+          }.
+
 
 pin() ->
   {act, r_pin, {branch, [{ok, {assert, pin, endP}},
