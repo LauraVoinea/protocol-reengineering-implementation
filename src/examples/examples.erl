@@ -1,41 +1,38 @@
 -module(examples).
 
--export([e1/0, e2/0, e3/0, e4/0, e5/0, e6/0, e7/0, e8/0, e9/0, e10/0,
-          bank/0, pintan/0, pin/0, tan/0, bank_pt/0, agent1/0, agent2/0, interleavings/0]).
-
+-export([ http/0, aws_auth/0, login/0, service/0, services/0, payments/0,
+          payment/0, dispatch/0, booking/0, resource/0, server/0,
+          bank/0, pintan/0, pin/0, tan/0, agent1/0, agent2/0, userAgent/0, 
+          bankauthsimple/0, keycard/0, agentInstrument/0, interleavings/0]).
 
 % # Examples
-e1() ->
-  {act, n, endP}.
-
-e2() ->
+service() ->
   {require, n, {act, x, endP}}.
 
-e3() ->
-  {assert, n, {act, y, endP}}.
-
-e4() ->
-  {branch, [{l, {act, b, {assert, n, endP}}} ,{r, {act, c, {assert, n, endP}}}]}.
-
-e5() ->
-  {branch, [{l, {assert, n, endP}} ,{r, {assert, n, endP}}, {m, {assert, n, endP}}]}.
-
-e6() ->
-  {branch, [{l, {require, n, endP}} ,{r, {act, c, endP}}, {m, {assert, n, endP}}]}.
-
-e7() ->
+login() ->
   {act, r_pwd, {branch, [{ok, {assert, n, endP}},{fail, endP}]}}.
 
-e8() ->
-  {require, n, {act, do_banking, endP}}.
+booking() ->
+  {require, n, {act, do_booking, endP}}.
 
-e9() ->
-  {rec, "x", {act, a, {act, b, {rvar, "x"}}}}.
 
-e10() ->
-  {rec, "y", {act, a, {branch, [{l, {act, b, {require, n, endP}}}
-                               ,{r, {rvar, "y"}}]}}}.
+server() ->
+  {rec, "y", {act, request, {branch, [{accept, {act, b, {require, n, endP}}}
+                               ,{ignore, {rvar, "y"}}]}}}.
+resource() ->
+ {branch, [{l, {assert, n, endP}} ,{r, {assert, n, endP}}, {m, {assert, n, endP}}]}.
 
+% example from 2.1
+payment() ->
+  {act, pay, {assert, paid, endP}}.
+dispatch() ->
+  {consume, paid, {act, item, endP}}.
+
+% correlating branching example
+services() -> {branch, [{s1,{assert, one, endP}}, {s2, {assert, two, endP}}]}.
+payments() -> {branch, [{p1,{consume, one, endP}}, {p2,{consume, two, endP}}]}.
+
+% PINTAN example
 bank() ->
   {require, pin, {rec, t, {branch, [{statement, {act, s_statement, {rvar, t}}},
                                     {payment, {assert, pay,{consume, tan,{act, r_details,  {rvar, t}}}}},
@@ -57,7 +54,7 @@ ctan() ->
               }
   }.
 
-
+% PINTAN
 bankauthsimple() ->
 {rec,t,
           {branch,
@@ -105,8 +102,8 @@ agent2() -> {consume, n, {branch, [{s_ai_set, {consume, set, {act, s_ai_coord, {
                                {s_ai_get, {consume, get, {act, r_ia_snap, {consume, snap, endP}}}},
                                {s_ai_close, {consume, close, endP}}]
             }}.
-            
-            
+
+
 
 userAgent() -> {rec, r, {branch, [  {ua_r_set, {act, ua_r_coord, {assert, set, {rvar, r}}}},
                                     {ua_r_get, {assert, get, {consume, snap, {act, au_s_snap, {rvar, r}}}}},
@@ -118,34 +115,60 @@ agentInstrument() -> {rec, t, {branch, [  {ai_s_set, {consume, set, {act, ai_s_c
                                           {ui_s_close, {consume, close, endP}}
 ]}}.
 
+% Http server as described in literature
+http() ->
+  {act, r_request, {rec, r, {branch, [{r_host,{rvar,r}},
+                                      {r_usera,{rvar,r}},
+                                      {r_acceptt,{rvar,r}},
+                                      {r_acceptl,{rvar,r}},
+                                      % {r_acceptE,{rvar,r}},
+                                      % {r_dnt,{rvar,r}},
+                                      % {r_connection,{rvar,r}},
+                                      % {r_upgradeir,{rvar,r}},
+                                      % {r_cookie,{rvar,r}},
+                                      {r_body, reply()}]}}}.
 
-bank_pt() -> {act,r_pin,
-{branch,
- [{ok,
-   {assert,pin,
-    {require,pin,
-     {rec,t,
-        {branch,
-         [{payment, 
-         {act,s_id,
-         {act,r_tan,
-           {branch,
-            [{ok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
-             {fail,{rvar,t}}]}}}},
-          {statement,{act, s_statement,{rvar,t}}},
-          {logout,{consume,pin,endP}}]}}}}},
-  {fail,endP}]}}.
-  
+reply() -> {require, auth, {act, s_httpv, {branch,[{'s_200', message()}, {'s_404', message()}]}}}.
+
+message() -> {rec, y, {branch, [{s_date,{rvar,y}},
+                                {s_server,{rvar,y}},
+                                {s_strictts,{rvar,y}},
+                                {s_lastm,{rvar,y}},
+                                {s_etag,{rvar,y}},
+                                {s_acceptr,{rvar,y}},
+                                {s_contentl,{rvar,y}},
+                                {s_vary,{rvar,y}},
+                                {s_contentt,{rvar,y}},
+                                {s_via,{rvar,y}},
+                                {s_cache,{rvar,y}},
+                                {s_body, endP}]}}.
+
+aws_auth() ->
+  {rec, r, {act, s_authenticate, {act, r_userpass,
+        {branch, [{ok, {assert, auth, endP}},
+                  {retry, {rvar, r}},
+                  {forbidden, endP}]
+                }}
+  }}.
+
 
 %% compute the number of interleavings for the different composition options
 interleavings() ->
-  Protocols = [{e7(), e2()}, {e2(), e3()}, {e2(), e4()}, {e2(), e5()}, 
-               {e6(), e3()}, {e7(), e8()}, {e3(), e10()}, {pin(), tan()},
-               {e5(), e10()}, {userAgent(), agentInstrument()}, {bankauthsimple(), keycard()}],
+  Protocols = [{login(), service()},
+               {services(), payments()},
+               {payment(), dispatch()},
+               {http(), aws_auth()},
+               {login(), booking()},
+               {pin(), tan()},
+               {pintan(), bank()},
+               {resource(), server()},
+               {userAgent(), agentInstrument()},
+               {bankauthsimple(), keycard()}],
+
   Strong = lists:map(fun({P1, P2}) -> length(interleave:interleave(P1, P2)) end, Protocols),
   Weak = lists:map(fun({P1, P2}) -> length(interleave:interleaveWeak(P1, P2)) end, Protocols),
   Correlating = lists:map(fun({P1, P2}) -> length(interleave:interleaveCorrelating(P1, P2)) end, Protocols),
-  WeakCorrelating = lists:map(fun({P1, P2}) -> length(interleave:interleaveAll(P1, P2)) end, Protocols), 
+  WeakCorrelating = lists:map(fun({P1, P2}) -> length(interleave:interleaveAll(P1, P2)) end, Protocols),
   io:format("Strong: ~p~n", [Strong]),
   io:format("Weak: ~p~n", [Weak]),
   io:format("Correlating: ~p~n", [Correlating]),

@@ -179,11 +179,13 @@ pprint(endP) ->
   "end".
   
 % power set
-
 power([]) -> [[]];
 power([H|T]) -> PT = power(T),
-   [ [H|X] || X <- PT ] ++ PT .
-  
+power(H, PT, PT).
+
+power(_, [], Acc) -> Acc;
+power(X, [H|T], Acc) -> power(X, T, [[X|H]|Acc]).
+
   
 filterSet(Data) when is_list(Data) ->
     Pred = fun(Element) -> Element /= [] end,
@@ -193,25 +195,36 @@ filterSet(Data) when is_list(Data) ->
     
 
 % Finds the subset of J without empty set
-jBranch(J) -> filterSet(power(J)).
+jBranch(J) ->
+  filterSet(power(J)).
 
 % Returns true if a bad combo i.e., it has at least an empty branch
+% badJCombo1(A) ->
+%   Results = for(A, fun({_,{branch, Si}}) ->
+%       case Si of
+%         [] -> true;
+%          _ -> false
+%       end
+%     end),
+%   lists:member(true, Results).
+
 badJCombo1(A) ->
-  Results = for(A, fun({_,{branch, Si}}) ->
-      case Si of
-        [] -> true;
-         _ -> false
-      end
-    end),
-  lists:member(true, Results).
+  F = fun({_,{branch, Si}}) ->
+    case Si of
+      [] -> true;
+      _ -> false
+    end
+  end,
+  lists:any(F, A).
     
 % Returns true if a bad combo i.e., there is an element in I that is not in any branch Ji
-badJCombo2(A, I) ->
-  Indices = for(A, fun({_,{branch, Js}}) ->
-            for(Js, fun({J, _}) -> J
-            end)
-          end),
-  case lists:usort(lists:flatten(Indices)) =:= lists:usort(lists:flatten(I)) of
+badJCombo2(A, Indices) ->
+  F = fun({_,{branch, [Js]}}) -> Js end,
+  Bras = lists:map(F, A),
+  F1 = fun({Label, _}) -> Label end,
+  Labels = lists:map(F1, Bras),
+
+  case Labels =:= Indices of
     true -> false;
     _ -> true
   end.
@@ -239,7 +252,10 @@ strip({rec, BV3, P}) -> {rec, BV3, strip(P)};
 strip(P) -> P. 
 
 stripSet([]) -> [];
-stripSet([X|XX]) -> [strip(X)] ++ stripSet(XX).
+%change
+% stripSet([X|XX]) -> [strip(X)] ++ stripSet(XX).
+stripSet([X|XX]) -> [strip(X) | stripSet(XX)].
+
 
 
 
@@ -254,7 +270,7 @@ subst({branch, LiSi}, BV1, BV2, A) ->
 subst({rec, BV3, P}, BV1, BV2, A) ->
   case lists:member(BV1, A) of
     true -> {rec, BV3, subst(P, BV1, BV2, A)};
-    false -> {rec, BV3, subst(P, BV1, BV2, A ++ [BV3])}
+    false -> {rec, BV3, subst(P, BV1, BV2, [BV3|A])}
   end;
 subst({rvar, BV1}, BV1, BV2, A) ->
   case lists:member(BV1, A) of
@@ -297,12 +313,12 @@ asserted(A, {consume, N, P}) ->
 asserted(A, {assert, N, P}) ->
   case lists:member(N, A) of
     true -> asserted(A, P);
-    false -> asserted(A ++ [N], P)
+    false -> asserted([N], P)
   end;
 asserted(A, {rec, _, P}) ->
   case asserted(A, P) of
     illAsserted -> illAsserted;
-    B -> lists:usort(B ++ A)
+    B -> lists:usort([B|A])
   end.
 wellAsserted(A, PS) ->
   case asserted(A, PS) of
@@ -330,7 +346,7 @@ bound(P, N) ->
     {require, _, R} -> bound(R,N);
     {consume, _, R} -> bound(R,N);
     {branch, LiSi} -> lists:all(fun(X) -> X end, for(LiSi, fun({_, Si})-> bound(Si,N) end) );
-    {rec, T, R} -> bound(R,N ++ [T]);
+    {rec, T, R} -> bound(R, [T | N]);
     {rvar, T} -> lists:member(T,N);
     endP -> true
   end.
@@ -342,6 +358,7 @@ bound(P, N) ->
 bind([], _F)    -> [];
 bind([X|XS], F) -> F(X) ++ bind(XS, F).
 
+
 %% @doc Basically just flip map
 -spec for([A], fun((A) -> B)) -> [B].
 for(XS, F) -> lists:map(F, XS).
@@ -349,18 +366,17 @@ for(XS, F) -> lists:map(F, XS).
 %% @doc Remove duplicate elements
 -spec nub([A]) -> [A].
 nub(X) -> nub(X, []).
-nub([], Clean) -> Clean;
+nub([], Clean) -> lists:reverse(Clean);
 nub([X|Xs], Clean) ->
     case lists:member(X, Clean) of
         true -> nub(Xs, Clean);
-        false -> nub(Xs, Clean ++ [X])
+        false -> nub(Xs, [X|Clean])
     end.
 
 %% @doc Compute a covering of a set (with two partitions)
 twoCovering([])  -> [];
 twoCovering([A]) -> [{[A], []}, {[], [A]}];
-twoCovering([A|AS]) ->
-  bind(twoCovering(AS), fun({XS, YS}) -> [{[A|XS], YS}, {XS, [A|YS]}] end).
+twoCovering([A|AS]) -> bind(twoCovering(AS), fun({XS, YS}) -> [{[A|XS], YS}, {XS, [A|YS]}] end).
 
 
 
@@ -397,8 +413,7 @@ interleaveCorrelating(S1, S2) ->
 nCartesian([]) -> [];
 %% XS is one list, [XS] is the list of one list of lists
 nCartesian([XS]) -> lists:map(fun (X) -> [X] end, XS);
-nCartesian([XS|XSS]) ->
-  bind(XS, fun(X) -> bind(nCartesian(XSS), fun(YS) -> [[X|YS]] end) end).
+nCartesian([XS|XSS]) -> bind(XS, fun(X) -> bind(nCartesian(XSS), fun(YS) -> [[X|YS]] end) end).
 
 %% @doc Takes
 %%   - a list TL of recursion variables [string()] bound on the left
@@ -459,7 +474,8 @@ interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
   case WeakFlag of
     strong -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
     weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
-    correlating -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
+    correlating -> 
+      lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
     all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}))
   end;  
 
@@ -468,7 +484,8 @@ interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2) ->
   case WeakFlag of
     strong -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
     weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
-    correlating -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
+    correlating -> 
+      lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
     all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2)  ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2))
   end;  
 
@@ -579,7 +596,7 @@ intCorrelating(WeakFlag, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
         end)
       end),
   % Now choose all combiations across branches
-  Results = for(nCartesian(LeftAndRightSubsetCombos), fun (Branches) ->
+  Results = for((nCartesian(LeftAndRightSubsetCombos)), fun (Branches) ->
               % check that inner branching is non empty for all Li (in the paper Ji =\= 0 )
               case badJCombo1(Branches) of
                 true -> [];
@@ -653,5 +670,5 @@ fact(endP, _) -> endP;
 fact(_, endP) -> endP.
 
 bramatch([{A,S}],[{A,T}]) -> [fact(S,T)];
-bramatch([{A,S}|B1],[{A,T}|B2]) -> [fact(S,T)] ++ bramatch(B1,B2);
+bramatch([{A,S}|B1],[{A,T}|B2]) -> [fact(S,T) | bramatch(B1,B2)];
 bramatch(_,_)-> noP.
