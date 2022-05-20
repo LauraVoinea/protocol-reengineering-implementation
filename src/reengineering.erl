@@ -49,9 +49,13 @@ handle_call({compose, FirstProtocol, SecondProtocol, weak}, _From, State) ->
   Reply = lists:usort(interleave:interleaveWeak(FirstProtocol, SecondProtocol)),
   {reply, Reply, State};
 
-handle_call({compose, FirstProtocol, SecondProtocol, weakweak}, _From, State) ->
-  Reply = lists:usort(interleave:interleaveWeakWeak(FirstProtocol, SecondProtocol)),
+handle_call({compose, FirstProtocol, SecondProtocol, correlating}, _From, State) ->
+  Reply = lists:usort(interleave:interleaveCorrelating(FirstProtocol, SecondProtocol)),
   {reply, Reply, State};
+
+handle_call({compose, FirstProtocol, SecondProtocol, all}, _From, State) ->
+    Reply = lists:usort(interleave:interleaveAll(FirstProtocol, SecondProtocol)),
+    {reply, Reply, State};
 
 handle_call({factorize, FirstProtocol, SecondProtocol}, _From, State) ->
   Reply = factorize:fact(FirstProtocol, SecondProtocol),
