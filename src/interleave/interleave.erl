@@ -96,19 +96,25 @@ bankauth() ->
    }.
    
 bankauthsimple() ->
-{rec,t,
+{act,r_pin,
+ {branch,
+  [{ok,
+      {rec,t,
           {branch,
               [ {payment, {assert, keyp,  {require, tb, {act,s_id, {act,r_tan, {branch,
-                                      [  {tok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
-                                          {tfail,{rvar,t}}
-                                      ]}}
+                                                    [{tok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
+                                                    {tfail,{rvar,t}}]
+                                                                                }
+                          }
                           }}
                 }},
                 {statement,{act,s_statement,{rvar,t}}},
-                 {logout,endP}
+                {logout,{act,s_statement,{rvar,t}}}
                ]
-            }
-}.
+          }
+}},
+ {fail,endP}]}
+   }.
 
 
 
@@ -157,6 +163,26 @@ agentInstrument() -> {rec, t, {branch, [  {ai_s_set, {consume, set, {act, ai_s_c
 ]}}.
 
   
+r1() -> {rec, t1, {act, f, {rvar, t1}}}.
+
+r2() -> {rec, t2, {act, g, {rvar, t2}}}.
+
+nr1() -> {rec, t1, {act, a, {rec, t2, {branch, [
+                                             {b1, {rvar, t1}},
+                                             {b2, {rvar,t2}}
+                                             ]}}}}.
+
+nr2() -> {rec, t3, {act, c, {rec, t4, {branch, [
+                                             {d1, {rvar, t3}},
+                                             {d2, {rvar,t4}}
+                                             ]}}}}.
+
+nrend() -> {rec, t3, {act, c, {rec, t4, {branch, [
+                                             {d1, {rvar, t3}},
+                                             {d2, {rvar,t4}},
+                                             {d3, endP}
+                                             ]}}}}.
+
 
 
 %% @doc Pretty print protocols
@@ -240,6 +266,12 @@ strip(P) -> P.
 
 stripSet([]) -> [];
 stripSet([X|XX]) -> [strip(X)] ++ stripSet(XX).
+
+%% Substitute element in list
+-spec lsubst([{string(), boolean()}], {string(), boolean()}) -> [{string(), boolean()}].
+lsubst([],_) -> [];
+lsubst([{T,false}|Tail],{T,false}) -> [{T,true}|Tail];
+lsubst([ H | T ], F ) -> [H] ++ lsubst(T, F).
 
 
 
@@ -363,7 +395,29 @@ twoCovering([A|AS]) ->
   bind(twoCovering(AS), fun({XS, YS}) -> [{[A|XS], YS}, {XS, [A|YS]}] end).
 
 
+%reverse a list
+reverse([]) -> [];
+reverse([H | T]) -> reverse(T) ++ [H].
 
+
+%finds if there are used variables in recursion environment
+-spec unused([{string(),boolean()}])  -> boolean().
+ unused([]) -> true;
+ unused([{_,true}|_]) -> false;
+ unused([{_,false}|T]) -> unused(T).
+ 
+ -spec subUsedW([{string(),boolean()}])  -> [{string(),boolean()}].
+ subUsedW([]) -> [];
+ subUsedW([{_,false}|T]) ->  subUsedW(T);
+ subUsedW(X) -> X.
+ subUsed(L) -> reverse(subUsedW(reverse(L))).
+ 
+ 
+-spec subUnusedW([{string(),boolean()}])  -> [{string(),boolean()}].
+subUnusedW([]) -> [];
+subUnusedW([{T,false}|L]) -> [{T,false}] ++ subUnusedW(L);
+subUnusedW([{_,true}|_]) -> [].
+subUnused(L) -> reverse(subUnusedW(reverse(L))).
 
 
 %% @doc Take the largest list in a list of lists
@@ -408,14 +462,14 @@ nCartesian([XS|XSS]) ->
 %%   - right protocol
 %% This function should be used in all recursive calls since it also implements
 %% the symmetry rule, where as interleaveMain does the main, asymmetrical work
--spec interleaveTop(atom(), [string()], [string()], [atom()], protocol(), protocol()) -> [protocol()].
+-spec interleaveTop(atom(), [{string(),boolean()}], [{string(),boolean()}], [atom()], protocol(), protocol()) -> [protocol()].
 %% [sym] rule
 interleaveTop(WeakFlag, TL, TR, A, S1, S2) ->
   interleaveMain(WeakFlag, TL, TR, A, S1, S2) ++
     interleaveMain(WeakFlag, TR, TL, A, S2, S1).
 
 %% @doc Asymmetrical (left-biased) rules
--spec interleaveMain(atom(), [string()], [string()], [atom()], protocol(), protocol()) -> [protocol()].
+-spec interleaveMain(atom(), [{string(),boolean()}], [{string(),boolean()}], [atom()], protocol(), protocol()) -> [protocol()].
 %% [end] rule
 interleaveMain(_, _, _, _, endP, endP) -> [endP];
 %% [act] rule
@@ -480,7 +534,7 @@ interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
   case S1 of
     {rec, _, _} -> [];
     _ -> for(
-          interleaveTop(WeakFlag, TL ++ [BV1], TR, A, S1, {rec, BV2, S2})
+          interleaveTop(WeakFlag, TL ++ [{BV1, false}], TR, A, S1, {rec, BV2, S2})
           , fun(S) ->
           case wellAsserted(A, {rec, BV1, S}) of
                         true -> {rec, BV1, S};
@@ -489,6 +543,8 @@ interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
             end)
   end;
   
+ 
+    
   
  %% [rec3]
 interleaveMain(_, _, _, A, {rec, BV1, S1}, endP) ->
@@ -496,17 +552,23 @@ interleaveMain(_, _, _, A, {rec, BV1, S1}, endP) ->
     true -> [{rec, BV1, S1}];
     false -> []
   end;
+  
  %% [rec2]
-interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, S2) ->
-  case S1 of
+interleaveMain(WeakFlag, TL , TR, A, {rec, BV1, S1}, S2) ->
+ case S1 of
     % TOP check
     {rec, _, _} -> [];
-    _ -> lists:append(for(TR, fun(S)->
-            interleaveTop(WeakFlag, TL, TR, A, subst(S1, BV1, S, []), S2) end))
+    _ -> lists:append(for(subUnused(TR), fun({S,B})->
+            interleaveTop(WeakFlag, TL, lsubst(TR,{S,B}), A, subst(S1, BV1, S, []), S2) end))
   end;
+  
+  
+
+  
+  
 %% [call]
 interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
-  case lists:member(BV1, TL) or lists:member(BV1, TR) of
+  case lists:member({BV1,true}, TL) or lists:member({BV1,true}, TR) of
     true -> [{rvar, BV1}];
     false -> []
   end;
