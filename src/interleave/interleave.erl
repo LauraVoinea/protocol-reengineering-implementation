@@ -52,8 +52,8 @@ e10() ->
                                ,{r, {rvar, "y"}}]}}}.
 
 bank() ->
-  {require, pin, {rec, t, {branch, [{statement, {act, s_statement, {rvar, t}}},
-                                    {payment, {assert, pay,{consume, tan,{act, r_details,  {rvar, t}}}}},
+  {require, pin, {rec, "t", {branch, [{statement, {act, s_statement, {rvar, "t"}}},
+                                    {payment, {assert, pay,{consume, tan,{act, r_details,  {rvar, "t"}}}}},
                                     {logout, {consume, pin, endP}}]
                           }
                   }
@@ -61,14 +61,14 @@ bank() ->
 
 pintan() ->
   {act, r_pin, {branch, [
-                          {ok, {assert, pin, {rec, r, {consume, pay, ctan()}}}},
+                          {ok, {assert, pin, {rec, "r", {consume, pay, ctan()}}}},
                           {fail, endP}]
                 }
   }.
 
 ctan() ->
-   {act, s_id, {act, r_tan, {branch, [{tok, {assert, tan, {rvar, r}}},
-                                            {tfail, {rvar, r}}]
+   {act, s_id, {act, r_tan, {branch, [{tok, {assert, tan, {rvar, "r"}}},
+                                            {tfail, {rvar, "r"}}]
                             }
               }
   }.
@@ -79,8 +79,8 @@ bankauth() ->
   [{ok,
     {assert,pin,
      {require,pin,
-      {rec,t,
-       {require, keyp, 
+      {rec,"t",
+       {require, keyp,
        {branch,
         [{payment,
           {assert,pay,
@@ -88,28 +88,28 @@ bankauth() ->
             {act,s_id,
              {act,r_tan,
               {branch,
-               [{tok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
-                {tfail,{rvar,t}}]}}}}}},
-         {statement,{act,s_statement,{rvar,t}}},
+               [{tok,{assert,tan,{consume,tan,{act,r_details,{rvar,"t"}}}}},
+                {tfail,{rvar,"t"}}]}}}}}},
+         {statement,{act,s_statement,{rvar,"t"}}},
          {logout,{consume,pin,endP}}]}}}}}},
    {fail,endP}]}
    }.
-   
+
 bankauthsimple() ->
 {act,r_pin,
  {branch,
   [{ok,
-      {rec,t,
+      {rec,"t",
           {branch,
               [ {payment, {assert, keyp,  {require, tb, {act,s_id, {act,r_tan, {branch,
-                                                    [{tok,{assert,tan,{consume,tan,{act,r_details,{rvar,t}}}}},
-                                                    {tfail,{rvar,t}}]
+                                                    [{tok,{assert,tan,{consume,tan,{act,r_details,{rvar,"t"}}}}},
+                                                    {tfail,{rvar,"t"}}]
                                                                                 }
                           }
                           }}
                 }},
-                {statement,{act,s_statement,{rvar,t}}},
-                {logout,{act,s_statement,{rvar,t}}}
+                {statement,{act,s_statement,{rvar,"t"}}},
+                {logout,{act,s_statement,{rvar,"t"}}}
                ]
           }
 }},
@@ -118,8 +118,8 @@ bankauthsimple() ->
 
 
 
-keycard() -> {rec, y, {require, keyp, {branch, [{tan, {assert, tb, {rvar, y}}},
-                         {keycard, {rvar, y}}
+keycard() -> {rec, "y", {require, keyp, {branch, [{tan, {assert, tb, {rvar, "y"}}},
+                         {keycard, {rvar, "y"}}
                                   ]
                         }}
           }.
@@ -127,13 +127,13 @@ keycard() -> {rec, y, {require, keyp, {branch, [{tan, {assert, tb, {rvar, y}}},
 
 pin() ->
   {act, r_pin, {branch, [{ok, {assert, pin, endP}},
-                                {fail, endP}]
+                              {fail, endP}]
                 }
   }.
 
 tan() ->
-  {require, pin, {rec, r, {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, r}}},
-                                                              {fail, {rvar, r}}]
+  {require, pin, {rec, "r", {act, s_id, {act, r_tan, {branch, [{ok, {assert, tan, {rvar, "r"}}},
+                                                              {fail, {rvar, "r"}}]
                                                     }
                                       }
                           }
@@ -149,41 +149,39 @@ agent2() -> {consume, n, {branch, [{s_ai_set, {consume, set, {act, s_ai_coord, {
                                {s_ai_get, {consume, get, {act, r_ia_snap, {consume, snap, endP}}}},
                                {s_ai_close, {consume, close, endP}}]
             }}.
-            
-            
 
-userAgent() -> {rec, r, {branch, [  {ua_r_set, {act, ua_r_coord, {assert, set, {rvar, r}}}},
-                                    {ua_r_get, {assert, get, {consume, snap, {act, au_s_snap, {rvar, r}}}}},
+
+
+userAgent() -> {rec, "r", {branch, [{ua_r_set, {act, ua_r_coord, {assert, set, {rvar, "r"}}}},
+                                    {ua_r_get, {assert, get, {consume, snap, {act, au_s_snap, {rvar, "r"}}}}},
                                     {ua_r_close, {assert, close, endP}}
 ]}}.
 
-agentInstrument() -> {rec, t, {branch, [  {ai_s_set, {consume, set, {act, ai_s_coord, {rvar, t}}}},
-                                          {ai_s_get, {consume, get, {act, ai_r_snap, {assert, snap, {rvar, t}}}}},
+agentInstrument() -> {rec, "t", {branch, [{ai_s_set, {consume, set, {act, ai_s_coord, {rvar, "t"}}}},
+                                          {ai_s_get, {consume, get, {act, ai_r_snap, {assert, snap, {rvar, "t"}}}}},
                                           {ui_s_close, {consume, close, endP}}
 ]}}.
 
-  
-r1() -> {rec, t1, {act, f, {rvar, t1}}}.
 
-r2() -> {rec, t2, {act, g, {rvar, t2}}}.
+r1() -> {rec, "t1", {act, f, {rvar, "t1"}}}.
 
-nr1() -> {rec, t1, {act, a, {rec, t2, {branch, [
-                                             {b1, {rvar, t1}},
-                                             {b2, {rvar,t2}}
+r2() -> {rec, "t2", {act, g, {rvar, "t2"}}}.
+
+nr1() -> {rec, "t1", {act, a, {rec, "t2", {branch, [
+                                             {b1, {rvar, "t1"}},
+                                             {b2, {rvar, "t2"}}
                                              ]}}}}.
 
-nr2() -> {rec, t3, {act, c, {rec, t4, {branch, [
-                                             {d1, {rvar, t3}},
-                                             {d2, {rvar,t4}}
+nr2() -> {rec, "t3", {act, c, {rec, "t4", {branch, [
+                                             {d1, {rvar, "t3"}},
+                                             {d2, {rvar, "t4"}}
                                              ]}}}}.
 
-nrend() -> {rec, t3, {act, c, {rec, t4, {branch, [
-                                             {d1, {rvar, t3}},
-                                             {d2, {rvar,t4}},
+nrend() -> {rec, "t3", {act, c, {rec, "t4", {branch, [
+                                             {d1, {rvar, "t3"}},
+                                             {d2, {rvar, "t4"}},
                                              {d3, endP}
                                              ]}}}}.
-
-
 
 %% @doc Pretty print protocols
 -spec pprint(protocol()) -> string().
@@ -203,7 +201,7 @@ pprint({rvar, Var}) ->
   Var;
 pprint(endP) ->
   "end".
-  
+
 % power set
 power([]) -> [[]];
 power([H|T]) -> PT = power(T),
@@ -212,13 +210,13 @@ power(H, PT, PT).
 power(_, [], Acc) -> Acc;
 power(X, [H|T], Acc) -> power(X, T, [[X|H]|Acc]).
 
-  
+
 filterSet(Data) when is_list(Data) ->
     Pred = fun(Element) -> Element /= [] end,
-    lists:filter(Pred, Data). 
+    lists:filter(Pred, Data).
 
 
-    
+
 
 % Finds the subset of J without empty set
 jBranch(J) ->
@@ -242,7 +240,7 @@ badJCombo1(A) ->
     end
   end,
   lists:any(F, A).
-    
+
 % Returns true if a bad combo i.e., there is an element in I that is not in any branch Ji
 badJCombo2(A, Indices) ->
   F = fun({_,{branch, [Js]}}) -> Js end,
@@ -272,10 +270,10 @@ strip({act, N, P}) -> {act, N, strip(P)};
 strip({assert, _, P}) -> strip(P);
 strip({require, _, P}) -> strip(P);
 strip({consume, _, P}) -> strip(P);
-strip({branch, LiSi}) -> 
+strip({branch, LiSi}) ->
   {branch, for(LiSi, fun({Li, Si}) -> {Li, strip(Si)} end)};
 strip({rec, BV3, P}) -> {rec, BV3, strip(P)};
-strip(P) -> P. 
+strip(P) -> P.
 
 stripSet([]) -> [];
 %change
@@ -421,14 +419,14 @@ reverse([H | T]) -> reverse(T) ++ [H].
  unused([]) -> true;
  unused([{_,true}|_]) -> false;
  unused([{_,false}|T]) -> unused(T).
- 
+
  -spec subUsedW([{string(),boolean()}])  -> [{string(),boolean()}].
  subUsedW([]) -> [];
  subUsedW([{_,false}|T]) ->  subUsedW(T);
  subUsedW(X) -> X.
  subUsed(L) -> reverse(subUsedW(reverse(L))).
- 
- 
+
+
 -spec subUnusedW([{string(),boolean()}])  -> [{string(),boolean()}].
 subUnusedW([]) -> [];
 subUnusedW([{T,false}|L]) -> [{T,false}] ++ subUnusedW(L);
@@ -528,23 +526,23 @@ interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
   case WeakFlag of
     strong -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
     weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
-    correlating -> 
+    correlating ->
       lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
     all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}))
-  end;  
+  end;
 
 
 interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2) ->
   case WeakFlag of
     strong -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
     weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
-    correlating -> 
+    correlating ->
       lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
     all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2)  ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2))
-  end;  
+  end;
 
 
-  
+
 %% [rec1]
 interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
   % Top(S1) not a recursion
@@ -559,17 +557,17 @@ interleaveMain(WeakFlag, TL, TR, A, {rec, BV1, S1}, {rec, BV2, S2}) ->
                       end
             end)
   end;
-  
- 
-    
-  
+
+
+
+
  %% [rec3]
 interleaveMain(_, _, _, A, {rec, BV1, S1}, endP) ->
   case wellAsserted(A, {rec, BV1, S1}) and bound({rec, BV1, S1},[]) of
     true -> [{rec, BV1, S1}];
     false -> []
   end;
-  
+
  %% [rec2]
 interleaveMain(WeakFlag, TL , TR, A, {rec, BV1, S1}, S2) ->
  case S1 of
@@ -578,11 +576,11 @@ interleaveMain(WeakFlag, TL , TR, A, {rec, BV1, S1}, S2) ->
     _ -> lists:append(for(subUnused(TR), fun({S,B})->
             interleaveTop(WeakFlag, TL, lsubst(TR,{S,B}), A, subst(S1, BV1, S, []), S2) end))
   end;
-  
-  
 
-  
-  
+
+
+
+
 %% [call]
 interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
   case lists:member({BV1,true}, TL) or lists:member({BV1,true}, TR) of
@@ -593,7 +591,7 @@ interleaveMain(_, TL, TR , _, {rvar, BV1}, {rvar, BV1}) ->
 interleaveMain(_, _, _, _, _, _) -> [].
 
 
- %% [bra] 
+ %% [bra]
 intStrong(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
   Covering = [{LiSi, []}],
   Possibilities = for(Covering,
@@ -616,7 +614,7 @@ intStrong(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
   end),
   lists:usort(lists:concat(Possibilities)).
 
- 
+
   %% [wbra]
 intWeak(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
   Covering = lists:droplast(twoCovering(LiSi)),
@@ -666,7 +664,7 @@ intCorrelating(WeakFlag, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
                 false ->  case badJCombo2(Branches, I) of
                             true -> [];
                             false -> {branch, Branches}
-                          end 
+                          end
               end
  end),
 %remove empty list
