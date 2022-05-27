@@ -312,6 +312,21 @@ subst({rvar, BV1}, BV1, BV2, A) ->
 subst({rvar, BV3}, _, _, _) -> {rvar, BV3};
 subst(endP, _ , _ , _ ) -> endP.
 
+
+%function that changes all rvar into standardized ones -- numbers
+-spec recUnify(protocol(),number()) -> protocol().
+recUnify({rec, R, P},N) -> {rec, N, subst(recUnify(P,N+1),R,N,[])};
+recUnify({rvar, P}) -> {rvar, P};
+
+recUnify({act, Act, P},N) -> {act, Act, recUnify(P,N)};
+recUnify({assert, M, P},N) -> {assert, M, recUnify(P,N)};
+recUnify({require, M, P},N) -> {require, M, recUnify(P,N)};
+recUnify({consume, M, P},N) -> {consume, M, recUnify(P,N)};
+recUnify({branch, LiSi}, BV1, BV2, A)  -> {branch, for(LiSi, fun(Li, Si) -> {Li, recUnify(Si, N)} end)};
+
+%nub
+%function that makes it pretty
+
 %% @doc Auxiliary printers
 %% Prints a branch
 pprintBranch({Label, P}) -> atom_to_list(Label) ++ " : " ++ pprint(P).
@@ -404,6 +419,11 @@ nub([X|Xs], Clean) ->
         true -> nub(Xs, Clean);
         false -> nub(Xs, [X|Clean])
     end.
+
+
+
+
+
 
 %% @doc Compute a covering of a set (with two partitions)
 twoCovering([])  -> [];
@@ -530,7 +550,7 @@ interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
     weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
     correlating -> 
       lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
-    all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}))
+    all -> lists:usort(intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}))
   end;  
 
 
