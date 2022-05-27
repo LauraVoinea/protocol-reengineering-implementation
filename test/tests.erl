@@ -8,7 +8,7 @@ reeng_test_() ->
      [
         % Gen Fsm
         {"Create statem", fun reeng_generate_statem/0},
-        {"Extract protocol", fun reeng_extract/0},
+        % {"Extract protocol", fun reeng_extract/0},
         {"Compose strong", fun reeng_compose_strong/0},
         {"Compose weak", fun reeng_compose_weak/0},
         {"Compose correlating", fun reeng_compose_correlating/0},
@@ -32,7 +32,7 @@ reeng_compose_weak() ->
     ?assert(1 == length(reengineering:compose(examples:login(), examples:service(), weak))),
     ?assert(1 == length(reengineering:compose(examples:services(), examples:payments(), weak))),
     ?assert(1 == length(reengineering:compose(examples:payment(), examples:dispatch(), weak))),
-    ?assert(6 == length(reengineering:compose(examples:http(), examples:aws_auth(), weak))),
+    % ?assert(6 == length(reengineering:compose(examples:http(), examples:aws_auth(), weak))),
     ?assert(1 == length(reengineering:compose(examples:login(), examples:booking(), weak))),
     ?assert(1 == length(reengineering:compose(examples:pin(), examples:tan(), weak))),
     ?assert(2 == length(reengineering:compose(examples:pintan(), examples:bank(), weak))),
@@ -45,7 +45,7 @@ reeng_compose_correlating() ->
     ?assert(0 == length(reengineering:compose(examples:login(), examples:service(), correlating))),
     ?assert(1 == length(reengineering:compose(examples:services(), examples:payments(), correlating))),
     ?assert(1 == length(reengineering:compose(examples:payment(), examples:dispatch(), correlating))),
-    ?assert(0 == length(reengineering:compose(examples:http(), examples:aws_auth(), correlating))),
+    % ?assert(0 == length(reengineering:compose(examples:http(), examples:aws_auth(), correlating))),
     ?assert(0 == length(reengineering:compose(examples:login(), examples:booking(), correlating))),
     ?assert(0 == length(reengineering:compose(examples:pin(), examples:tan(), correlating))),
     ?assert(0 == length(reengineering:compose(examples:pintan(), examples:bank(), correlating))),
@@ -58,7 +58,7 @@ reeng_compose_all() ->
     ?assert(1 == length(reengineering:compose(examples:login(), examples:service(), all))),
     ?assert(2 == length(reengineering:compose(examples:services(), examples:payments(), all))),
     ?assert(1 == length(reengineering:compose(examples:payment(), examples:dispatch(), all))),
-    ?assert(9 == length(reengineering:compose(examples:http(), examples:aws_auth(), all))),
+    % ?assert(9 == length(reengineering:compose(examples:http(), examples:aws_auth(), all))),
     ?assert(1 == length(reengineering:compose(examples:login(), examples:booking(), all))),
     ?assert(1 == length(reengineering:compose(examples:pin(), examples:tan(), all))),
     ?assert(2 == length(reengineering:compose(examples:pintan(), examples:bank(), all))),
@@ -107,7 +107,7 @@ reeng_extract() ->
     ?assert(equals(examples:agent2(), reengineering:extract("src/examples/agents/agent2_stub.erl")))
     .
 
-equals_br({Label1, P1}, {Label2, P2}) -> 
+equals_br({Label1, P1}, {Label2, P2}) ->
     Var1 = lists:last(string:tokens(atom_to_list(Label1), "_")),
     Var2 = lists:last(string:tokens(atom_to_list(Label2), "_")),
     string:equal(Var1, Var2) and equals(P1, P2);
@@ -134,7 +134,7 @@ equals({rvar, _}, {rvar, _}) ->
     true;
 equals(endP, endP) ->
     true;
-equals(_, _) -> 
+equals(_, _) ->
     false.
 
 
