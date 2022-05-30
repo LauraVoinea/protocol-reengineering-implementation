@@ -202,6 +202,14 @@ pprint({rvar, Var}) ->
 pprint(endP) ->
   "end".
 
+%% @doc Auxiliary printers
+%% Prints a branch
+pprintBranch({Label, P}) -> atom_to_list(Label) ++ " : " ++ pprint(P).
+% Prints a list of branches
+pprintBranches([])     -> "";
+pprintBranches([B])    -> pprintBranch(B);
+pprintBranches([B|BS]) -> pprintBranch(B) ++ "; " ++ pprintBranches(BS).
+
 % power set
 power([]) -> [[]];
 power([H|T]) -> PT = power(T),
@@ -290,13 +298,17 @@ lsubst([ H | T ], F ) -> [H] ++ lsubst(T, F).
 
 
 %% @doc Substitution
--spec subst(protocol(), string(), string(), [string()]) -> protocol().
+% -spec subst(protocol(), string(), string(), [string()]) -> protocol().
 subst({act, Act, P}, BV1, BV2, A) -> {act, Act, subst(P, BV1, BV2, A)};
 subst({assert, N, P}, BV1, BV2, A) -> {assert, N, subst(P, BV1, BV2, A)};
 subst({require, N, P}, BV1, BV2, A) -> {require, N, subst(P, BV1, BV2, A)};
 subst({consume, N, P}, BV1, BV2, A) -> {consume, N, subst(P, BV1, BV2, A)};
 subst({branch, LiSi}, BV1, BV2, A) ->
-  {branch, for(LiSi, fun({Li, Si}) -> {Li, subst(Si, BV1, BV2, A)} end)};
+  % {branch, for(LiSi, fun({Li, Si}) ->
+  %   {Li, subst(Si, BV1, BV2, A)} end)};
+  {branch, lists:map(fun({Label, Br}) ->
+      {Label, subst(Br, BV1, BV2, A)} end, LiSi)};
+
 subst({rec, BV3, P}, BV1, BV2, A) ->
   case lists:member(BV1, A) of
     true -> {rec, BV3, subst(P, BV1, BV2, A)};
@@ -313,25 +325,21 @@ subst(endP, _ , _ , _ ) -> endP.
 
 %function that changes all rvar into standardized ones -- numbers
 -spec recUnify(protocol(),number()) -> protocol().
-recUnify({rec, R, P},N) -> {rec, N, subst(recUnify(P,N+1),R,N,[])};
-recUnify({rvar, P}) -> {rvar, P};
+recUnify({rec, BV, P}, NBV) -> {rec, integer_to_list(NBV), subst(recUnify(P, NBV+1), BV, integer_to_list(NBV), [])};
+recUnify({rvar, BV}, _) -> {rvar, BV};
+recUnify(endP, _) -> endP;
 
-recUnify({act, Act, P},N) -> {act, Act, recUnify(P,N)};
-recUnify({assert, M, P},N) -> {assert, M, recUnify(P,N)};
-recUnify({require, M, P},N) -> {require, M, recUnify(P,N)};
-recUnify({consume, M, P},N) -> {consume, M, recUnify(P,N)};
-recUnify({branch, LiSi}, BV1, BV2, A)  -> {branch, for(LiSi, fun(Li, Si) -> {Li, recUnify(Si, N)} end)};
+recUnify({act, Act, P}, NBV) -> {act, Act, recUnify(P, NBV)};
+recUnify({assert, N, P}, NBV) -> {assert, N, recUnify(P, NBV)};
+recUnify({require, N, P}, NBV) -> {require, N, recUnify(P, NBV)};
+recUnify({consume, N, P}, NBV) -> {consume, N, recUnify(P, NBV)};
+recUnify({branch, Brs}, NBV) ->
+  F = fun({Label, Br}) ->
+    {Label, recUnify(Br, NBV)} end,
+  {branch, lists:map(F, Brs)}.
 
 %nub
 %function that makes it pretty
-
-%% @doc Auxiliary printers
-%% Prints a branch
-pprintBranch({Label, P}) -> atom_to_list(Label) ++ " : " ++ pprint(P).
-% Prints a list of branches
-pprintBranches([])     -> "";
-pprintBranches([B])    -> pprintBranch(B);
-pprintBranches([B|BS]) -> pprintBranch(B) ++ "; " ++ pprintBranches(BS).
 
 %% @doc Assertedness
 % WIP: defaults to well-asserted
@@ -460,24 +468,29 @@ maximalPoss([], Max) -> Max;
 maximalPoss([XS|XSS], Max) when length(XS) >= length(Max) -> maximalPoss(XSS, XS);
 maximalPoss([_|XSS], Max)  -> maximalPoss(XSS, Max).
 
+
+
+recUnified(Comps) -> lists:map(fun(C) -> recUnify(C, 1) end, Comps).
+
 % Top-level
 -spec interleave(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
-interleave(S1, S2) -> nub(interleaveTop(strong, [], [], [], S1, S2)).
+interleave(S1, S2) -> nub(recUnified(interleaveTop(strong, [], [], [], S1, S2))).
+
 
 -spec interleaveWeak(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
-interleaveWeak(S1, S2) -> nub(interleaveTop(weak, [], [], [], S1, S2)).
+interleaveWeak(S1, S2) -> nub(recUnified(interleaveTop(weak, [], [], [], S1, S2))).
 
 -spec interleaveAll(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
 interleaveAll(S1, S2) ->
-    nub(interleaveTop(all, [], [], [], S1, S2)).
+    nub(recUnified(interleaveTop(all, [], [], [], S1, S2))).
 
 -spec interleaveCorrelating(protocol(), protocol()) -> [protocol ()].
 %% @doc Wraps the main function and passes in empty environments
 interleaveCorrelating(S1, S2) ->
-    nub(interleaveTop(correlating, [], [], [], S1, S2)).
+    nub(recUnified(interleaveTop(correlating, [], [], [], S1, S2))).
 
 
 %% @doc n-way Cartesian product
@@ -548,14 +561,8 @@ interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
     weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
     correlating ->
       lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
-<<<<<<< HEAD
     all -> lists:usort(intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}))
-  end;  
-=======
-    all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}))
   end;
->>>>>>> 0212e3fefe8519b83ee6731523051985e7dc5623
-
 
 interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2) ->
   case WeakFlag of
