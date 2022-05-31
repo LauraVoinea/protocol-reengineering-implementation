@@ -124,11 +124,11 @@ http() ->
   {act, r_request, {rec, "r", {branch,[{r_host,{rvar,"r"}},
                                       {r_usera,{rvar,"r"}},
                                       {r_acceptt,{rvar,"r"}},
-                                      % {r_acceptl,{rvar,"r"}},
-                                      % {r_acceptE,{rvar,"r"}},
-                                      % {r_dnt,{rvar,"r"}},
-                                      % {r_connection,{rvar,"r"}},
-                                      % {r_upgradeir,{rvar,"r"}},
+                                      {r_acceptl,{rvar,"r"}},
+                                      {r_acceptE,{rvar,"r"}},
+                                      {r_dnt,{rvar,"r"}},
+                                      {r_connection,{rvar,"r"}},
+                                      {r_upgradeir,{rvar,"r"}},
                                       % {r_cookie,{rvar,"r"}},
                                       {r_body, reply()}]}}}.
 
@@ -138,19 +138,19 @@ message() -> {rec, "y", {branch, [{s_date,{rvar,"y"}},
                                 {s_server,{rvar,"y"}},
                                 {s_strictts,{rvar,"y"}},
                                 {s_lastm,{rvar,"y"}},
-                                % {s_etag,{rvar,"y"}},
-                                % {s_acceptr,{rvar,"y"}},
-                                % {s_contentl,{rvar,"y"}},
-                                % {s_vary,{rvar,"y"}},
-                                % {s_contentt,{rvar,"y"}},
-                                % {s_via,{rvar,"y"}},
-                                % {s_cache,{rvar,"y"}},
+                                {s_etag,{rvar,"y"}},
+                                {s_acceptr,{rvar,"y"}},
+                                {s_contentl,{rvar,"y"}},
+                                {s_vary,{rvar,"y"}},
+                                {s_contentt,{rvar,"y"}},
+                                {s_via,{rvar,"y"}},
+                                {s_cache,{rvar,"y"}},
                                 {s_body, endP}]}}.
 
 aws_auth() ->
-  {rec, "r", {act, s_authenticate, {act, r_userpass,
+  {rec, "x", {act, s_authenticate, {act, r_userpass,
         {branch, [{ok, {assert, auth, endP}},
-                  {retry, {rvar, "r"}},
+                  {retry, {rvar, "x"}},
                   {forbidden, endP}]
                 }}
   }}.

@@ -371,7 +371,7 @@ asserted(A, {assert, N, P}) ->
 asserted(A, {rec, _, P}) ->
   case asserted(A, P) of
     illAsserted -> illAsserted;
-    B -> lists:usort([B|A])
+    B -> [B|A]
   end.
 wellAsserted(A, PS) ->
   case asserted(A, PS) of
@@ -557,20 +557,20 @@ interleaveMain(_, _, _, _, {branch, []}, _) -> errorEmptyBranch;
 
 interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
   case WeakFlag of
-    strong -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
-    weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
+    strong -> intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2});
+    weak -> intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2});
     correlating ->
-      lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}));
-    all -> lists:usort(intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}))
+      intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})  ++ intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2});
+    all -> intCorrelating(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, {branch, LiSi2})
   end;
 
 interleaveMain(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2) ->
   case WeakFlag of
-    strong -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
-    weak -> lists:usort(intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
+    strong -> intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2);
+    weak -> intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2);
     correlating ->
-      lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2));
-    all -> lists:usort(intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2)  ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2))
+      intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2);
+    all -> intStrong(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2)  ++ intWeak(WeakFlag,  TL, TR, A, {branch, LiSi1}, S2)
   end;
 
 
@@ -644,7 +644,7 @@ intStrong(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
       false -> []
     end
   end),
-  lists:usort(lists:concat(Possibilities)).
+  lists:concat(Possibilities).
 
 
   %% [wbra]
