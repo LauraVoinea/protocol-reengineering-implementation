@@ -7,14 +7,13 @@
 protocol(File) ->
   {parsed, gen_statem, Graph} = build_graph:parse_file(File),
   Vs = lists:sort(digraph:vertices(Graph)),
-  % V = hd(lists:delete(hd(Vs), Vs)),
   V = hd(Vs),
   rec(V, Graph, maps:new(), maps:new(), digraph:get_cycle(Graph, V)).
 
 cons({}, Protocol) -> Protocol;
 cons({_, _, _, Text}, Protocol) ->
   Fun = fun(Elem, P) -> Es = string:tokens(Elem, " ()"),
-                        case Es of 
+                        case Es of
                           [] -> P;
                           [_One] -> P;
                           ["require", Var] -> {require, list_to_atom(Var), P};
@@ -36,17 +35,17 @@ rec(V, G, Cs, RecMap, Cyc) when is_list(Cyc) ->
             Cs1 = maps:put(lists:usort(Cyc), lists:last(Cyc), Cs),
             RecMap1 = maps:put(lists:last(Cyc), RecLab, RecMap),
             {'rec', RecLab, acts(V, G, digraph:out_degree(G, V), Cs1, RecMap1)};
-    false -> 
-      cons(Label#edge_data.comments, acts(V, G, digraph:out_degree(G, V), Cs, RecMap))     
+    false ->
+      cons(Label#edge_data.comments, acts(V, G, digraph:out_degree(G, V), Cs, RecMap))
   end;
-rec(V, G, Cs, RecMap, _Cyc) -> 
+rec(V, G, Cs, RecMap, _Cyc) ->
   case  digraph:in_degree(G, V) == 0 of
     true ->   OutEdges = digraph:out_edges(G, V),
                {_E, _V1, V2, Label} = digraph:edge(G, hd(OutEdges)),
                cons(Label#edge_data.comments, rec(V2, G, Cs, RecMap, digraph:get_cycle(G, V2)));
     false ->   acts(V, G, digraph:out_degree(G, V), Cs, RecMap)
-  end. 
-  
+  end.
+
 
 
 rvar(V, G, O, Cs, RecMap) ->

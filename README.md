@@ -17,7 +17,7 @@ Protocol Composition:
 
 For example:
 
-    interleave:interleaveWeak(interleave:pin(), interleave:tan())).
+    interleave:interleaveWeak(interleave:pin(), interleave:tan()).
 
 Code Generation:
 

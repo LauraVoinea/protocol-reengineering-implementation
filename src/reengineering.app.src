@@ -1,8 +1,8 @@
-{application, protocol_reengineering,
+{application, reengineering,
  [{description, "Protocol re-engineering application"},
   {vsn, "0.1.0"},
   {registered, []},
-  {mod, {protocol_reengineering_app, []}},
+  {mod, {reengineering_app, []}},
   {applications,
    [kernel,
     stdlib

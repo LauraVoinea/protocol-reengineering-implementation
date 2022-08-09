@@ -1,4 +1,4 @@
--module(reengineering).
+-module(reeng).
 
 -behaviour(gen_server).
 

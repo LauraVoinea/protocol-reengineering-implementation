@@ -11,7 +11,6 @@
          receive_acceptt/1,
          receive_body/1,
          receive_connection/1,
-         receive_cookie/1,
          receive_dnt/1,
          receive_host/1,
          receive_request/1,
@@ -34,11 +33,11 @@
          send_via/1,
          start_link/0,
          state1/3,
+         state11/3,
          state12/3,
          state13/3,
-         state14/3,
          state2/3,
-         state27/3,
+         state26/3,
          stop/0,
          terminate/3]).
 
@@ -62,52 +61,51 @@ state2(cast, {receive_connection, Connection}, Data) ->
     {next_state, state2, Data};
 state2(cast, {receive_upgradeir, Upgradeir}, Data) ->
     {next_state, state2, Data};
-state2(cast, {receive_cookie, Cookie}, Data) -> {next_state, state2, Data};
 %require auth
-state2(cast, {receive_body, Body}, Data) -> {next_state, state12, Data}.
+state2(cast, {receive_body, Body}, Data) -> {next_state, state11, Data}.
+
+state11(enter, _OldState, _Data) -> keep_state_and_data;
+state11(internal, {send_httpv, Httpv}, Data) -> {next_state, state12, Data}.
 
 state12(enter, _OldState, _Data) -> keep_state_and_data;
-state12(internal, {send_httpv, Httpv}, Data) -> {next_state, state13, Data}.
+state12(internal, {send_200, 200}, Data) -> {next_state, state13, Data};
+state12(internal, {send_404, 404}, Data) -> {next_state, state26, Data}.
 
 state13(enter, _OldState, _Data) -> keep_state_and_data;
-state13(internal, {send_200, 200}, Data) -> {next_state, state14, Data};
-state13(internal, {send_404, 404}, Data) -> {next_state, state27, Data}.
-
-state14(enter, _OldState, _Data) -> keep_state_and_data;
-state14(internal, {send_date, Date}, Data) -> {next_state, state14, Data};
-state14(internal, {send_server, Server}, Data) -> {next_state, state14, Data};
-state14(internal, {send_strictts, Strictts}, Data) ->
-    {next_state, state14, Data};
-state14(internal, {send_lastm, Lastm}, Data) -> {next_state, state14, Data};
-state14(internal, {send_etag, Etag}, Data) -> {next_state, state14, Data};
-state14(internal, {send_acceptr, Acceptr}, Data) -> {next_state, state14, Data};
-state14(internal, {send_contentl, Contentl}, Data) ->
-    {next_state, state14, Data};
-state14(internal, {send_vary, Vary}, Data) -> {next_state, state14, Data};
-state14(internal, {send_contentt, Contentt}, Data) ->
-    {next_state, state14, Data};
-state14(internal, {send_via, Via}, Data) -> {next_state, state14, Data};
-state14(internal, {send_cache, Cache}, Data) -> {next_state, state14, Data};
-state14(internal, {send_body, Body}, Data) -> {stop, normal, Data}.
+state13(internal, {send_date, Date}, Data) -> {next_state, state13, Data};
+state13(internal, {send_server, Server}, Data) -> {next_state, state13, Data};
+state13(internal, {send_strictts, Strictts}, Data) ->
+    {next_state, state13, Data};
+state13(internal, {send_lastm, Lastm}, Data) -> {next_state, state13, Data};
+state13(internal, {send_etag, Etag}, Data) -> {next_state, state13, Data};
+state13(internal, {send_acceptr, Acceptr}, Data) -> {next_state, state13, Data};
+state13(internal, {send_contentl, Contentl}, Data) ->
+    {next_state, state13, Data};
+state13(internal, {send_vary, Vary}, Data) -> {next_state, state13, Data};
+state13(internal, {send_contentt, Contentt}, Data) ->
+    {next_state, state13, Data};
+state13(internal, {send_via, Via}, Data) -> {next_state, state13, Data};
+state13(internal, {send_cache, Cache}, Data) -> {next_state, state13, Data};
+state13(internal, {send_body, Body}, Data) -> {stop, normal, Data}.
 
 terminate(_Reason, _State, _Data) -> ok.
 
-state27(enter, _OldState, _Data) -> keep_state_and_data;
-state27(internal, {send_date, Date}, Data) -> {next_state, state27, Data};
-state27(internal, {send_server, Server}, Data) -> {next_state, state27, Data};
-state27(internal, {send_strictts, Strictts}, Data) ->
-    {next_state, state27, Data};
-state27(internal, {send_lastm, Lastm}, Data) -> {next_state, state27, Data};
-state27(internal, {send_etag, Etag}, Data) -> {next_state, state27, Data};
-state27(internal, {send_acceptr, Acceptr}, Data) -> {next_state, state27, Data};
-state27(internal, {send_contentl, Contentl}, Data) ->
-    {next_state, state27, Data};
-state27(internal, {send_vary, Vary}, Data) -> {next_state, state27, Data};
-state27(internal, {send_contentt, Contentt}, Data) ->
-    {next_state, state27, Data};
-state27(internal, {send_via, Via}, Data) -> {next_state, state27, Data};
-state27(internal, {send_cache, Cache}, Data) -> {next_state, state27, Data};
-state27(internal, {send_body, Body}, Data) -> {stop, normal, Data}.
+state26(enter, _OldState, _Data) -> keep_state_and_data;
+state26(internal, {send_date, Date}, Data) -> {next_state, state26, Data};
+state26(internal, {send_server, Server}, Data) -> {next_state, state26, Data};
+state26(internal, {send_strictts, Strictts}, Data) ->
+    {next_state, state26, Data};
+state26(internal, {send_lastm, Lastm}, Data) -> {next_state, state26, Data};
+state26(internal, {send_etag, Etag}, Data) -> {next_state, state26, Data};
+state26(internal, {send_acceptr, Acceptr}, Data) -> {next_state, state26, Data};
+state26(internal, {send_contentl, Contentl}, Data) ->
+    {next_state, state26, Data};
+state26(internal, {send_vary, Vary}, Data) -> {next_state, state26, Data};
+state26(internal, {send_contentt, Contentt}, Data) ->
+    {next_state, state26, Data};
+state26(internal, {send_via, Via}, Data) -> {next_state, state26, Data};
+state26(internal, {send_cache, Cache}, Data) -> {next_state, state26, Data};
+state26(internal, {send_body, Body}, Data) -> {stop, normal, Data}.
 
 receive_acceptE(AcceptE) ->
     gen_statem:cast(?SERVER, {receive_acceptE, AcceptE}).
@@ -122,8 +120,6 @@ receive_body(Body) -> gen_statem:cast(?SERVER, {receive_body, Body}).
 
 receive_connection(Connection) ->
     gen_statem:cast(?SERVER, {receive_connection, Connection}).
-
-receive_cookie(Cookie) -> gen_statem:cast(?SERVER, {receive_cookie, Cookie}).
 
 receive_dnt(Dnt) -> gen_statem:cast(?SERVER, {receive_dnt, Dnt}).
 

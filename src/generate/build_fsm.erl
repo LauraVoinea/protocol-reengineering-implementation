@@ -14,7 +14,6 @@ end_state() -> end_state.
 to_fsm(P) ->
   Edge = #edge{from = 0, to = 1, edge_data = #edge_data{event = init, event_type = init}},
   {Edges, Nodes, _, _, _, _} = to_fsm(P, [Edge], maps:put(0, init_state, maps:new()), maps:new(), 1, 1, -1),
-  % {Edges, Nodes, _, _, _, _, _} = to_fsm(P, [], maps:new(), maps:new(), 1, 1, -1, []),
   {Edges, Nodes}.
 
 %% @doc processes the actions and labels names and sets the event,

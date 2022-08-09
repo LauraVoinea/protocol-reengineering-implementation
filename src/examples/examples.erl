@@ -24,17 +24,17 @@ resource() ->
 
 %% example from 2.1
 % I1
-payment() ->
+i1() ->
   {act, pay, {assert, paid, endP}}.
 % I2
-dispatch() ->
+i2() ->
   {consume, paid, {act, item, endP}}.
 
 %% correlating branching example from 3.1.2
 % S1
-services() -> {branch, [{s1,{assert, one, endP}}, {s2, {assert, two, endP}}]}.
+s1() -> {branch, [{s1,{assert, one, endP}}, {s2, {assert, two, endP}}]}.
 % S2
-payments() -> {branch, [{p1,{consume, one, endP}}, {p2,{consume, two, endP}}]}.
+s2() -> {branch, [{p1,{consume, one, endP}}, {p2,{consume, two, endP}}]}.
 
 
 %% Example 3 Fairness and weak branching
@@ -129,7 +129,6 @@ http() ->
                                       {r_dnt,{rvar,"r"}},
                                       {r_connection,{rvar,"r"}},
                                       {r_upgradeir,{rvar,"r"}},
-                                      % {r_cookie,{rvar,"r"}},
                                       {r_body, reply()}]}}}.
 
 reply() -> {require, auth, {act, s_httpv, {branch,[{'s_200', message()}, {'s_404', message()}]}}}.
@@ -197,8 +196,8 @@ email() -> {rec, "menu", {require, auth, {branch, [{read, {act, read, {rvar, "me
 %% compute the number of interleavings for the different composition options
 interleavings() ->
   Protocols = [{login(), service()},
-               {services(), payments()},
-               {payment(), dispatch()},
+               {s1(), s2()},
+               {i1(), i2()},
                {http(), aws_auth()},
                {login(), booking()},
                {pin(), tan()},
@@ -217,3 +216,53 @@ interleavings() ->
   io:format("Weak: ~p~n", [Weak]),
   io:format("Correlating: ~p~n", [Correlating]),
   io:format("Weak Correlating: ~p~n", [WeakCorrelating]).
+
+-spec flatten(list() | tuple()) -> list().
+flatten(Thing) ->
+    lists:flatten(flatten(Thing, [])).
+
+flatten(Thing, A) when is_tuple(Thing) ->
+    flatten(tuple_to_list(Thing), A);
+flatten([], A) ->
+    lists:reverse(A);
+flatten([H | T], A) when is_tuple(H) ->
+    flatten(T, [flatten(H) | A]);
+flatten([H | T], A) when is_list(H) ->
+    flatten(T, [flatten(H) | A]);
+flatten([H | T], A) ->
+    flatten(T, [H | A]).
+
+format_row({{{P1,P2},S, W}, C, A}) ->
+    lists:flatten(io_lib:format("~s, ~s, ~b, ~b, ~b, ~b", [P1,P2,S, W, C, A])).
+format(Data) ->
+    string:join(lists:map(fun format_row/1, Data), "\n ").
+table() ->
+  Protocols = [{login(), service()},
+               {s1(), s2()},
+               {i1(), i2()},
+               % {http(), aws_auth()},
+               {login(), booking()},
+               {pin(), tan()},
+               {pintan(), bank()},
+               {resource(), server()},
+               {userAgent(), agentInstrument()},
+               {bankauthsimple(), keycard()},
+               % {auth_step_one(), auth_step_two()},
+               {auth_two_step(), email()}],
+  PNames = [{login, service},
+               {s1, s2},
+               {i1, i2},
+               % {http(), aws_auth()},
+               {login, booking},
+               {pin, tan},
+               {pintan, bank},
+               {resource, server},
+               {userAgent, agentInstrument},
+               {bankauthsimple, keycard},
+               {auth_two_step, email}],
+  Strong = lists:map(fun({P1, P2}) -> length(interleave:interleave(P1, P2)) end, Protocols),
+  Weak = lists:map(fun({P1, P2}) -> length(interleave:interleaveWeak(P1, P2)) end, Protocols),
+  Correlating = lists:map(fun({P1, P2}) -> length(interleave:interleaveCorrelating(P1, P2)) end, Protocols),
+  WeakCorrelating = lists:map(fun({P1, P2}) -> length(interleave:interleaveAll(P1, P2)) end, Protocols),
+  Data = format(lists:zip3(lists:zip3(PNames, Strong, Weak), Correlating, WeakCorrelating)),
+  io:format("Protocols Strong Weak Correlating All~n~s~n", [Data]).

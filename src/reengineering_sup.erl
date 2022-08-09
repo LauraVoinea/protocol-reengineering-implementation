@@ -3,7 +3,7 @@
 %% @end
 %%%-------------------------------------------------------------------
 
--module(protocol_reengineering_sup).
+-module(reengineering_sup).
 
 -behaviour(supervisor).
 
@@ -30,8 +30,8 @@ init([]) ->
                  intensity => 0,
                  period => 1},
 
-   ProtocolReeng = {server, {reengineering, start_link, []},
-                  permanent, 2000, worker, [reengineering]},
+   ProtocolReeng = {server, {reeng, start_link, []},
+                  permanent, 2000, worker, [reeng]},
    {ok, {SupFlags, [ProtocolReeng]}}.
 
 
