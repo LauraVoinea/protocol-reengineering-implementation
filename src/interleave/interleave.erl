@@ -182,6 +182,35 @@ nrend() -> {rec, "t3", {act, c, {rec, "t4", {branch, [
                                              {d2, {rvar, "t4"}},
                                              {d3, endP}
                                              ]}}}}.
+                                             
+r3_1() ->  {act, r_pwd, {assert, login, {rec, "t1", {branch, [
+                                                               {void, {rvar, "t1"}},
+                                                               {quit, {act, quit, {assert, n, {consume, login, endP}}}}
+                                                               ]
+    }}}}.
+    
+r3_2() ->  {rec, "t", {branch, [
+                               {balance, {require, login, {act, bal, {rvar, "t"}}}},
+                               {logout, {consume, n, endP}}
+                               ]
+           }}.
+
+
+r3_3() ->   {branch, [
+                                                               {void, {assert, a, endP}},
+                                                               {quit, {assert, b, endP}}
+                                                               ]
+    }.
+    
+r3_4() -> {branch, [
+                               {balance, {require, a, endP}},
+                               {finish, {require, b, endP}}
+                               ]
+           }.
+
+
+
+                              
 
 %% @doc Pretty print protocols
 -spec pprint(protocol()) -> string().
