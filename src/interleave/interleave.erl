@@ -196,17 +196,6 @@ r3_2() ->  {rec, "t", {branch, [
            }}.
 
 
-r3_3() ->   {branch, [
-                                                               {void, {assert, a, endP}},
-                                                               {quit, {assert, b, endP}}
-                                                               ]
-    }.
-    
-r3_4() -> {branch, [
-                               {balance, {require, a, endP}},
-                               {finish, {require, b, endP}}
-                               ]
-           }.
 
 
 
