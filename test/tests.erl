@@ -43,27 +43,27 @@ reeng_compose_weak() ->
 
 reeng_compose_correlating() ->
     ?assert(0 == length(reeng:compose(examples:login(), examples:service(), correlating))),
-    ?assert(1 == length(reeng:compose(examples:s1(), examples:s2(), correlating))),
+    ?assert(2 == length(reeng:compose(examples:s1(), examples:s2(), correlating))),
     ?assert(1 == length(reeng:compose(examples:i1(), examples:i2(), correlating))),
     % ?assert(0 == length(reeng:compose(examples:http(), examples:aws_auth(), correlating))),
     ?assert(0 == length(reeng:compose(examples:login(), examples:booking(), correlating))),
     ?assert(0 == length(reeng:compose(examples:pin(), examples:tan(), correlating))),
     ?assert(0 == length(reeng:compose(examples:pintan(), examples:bank(), correlating))),
     ?assert(1 == length(reeng:compose(examples:resource(), examples:server(), correlating))),
-    ?assert(1 == length(reeng:compose(examples:userAgent(), examples:agentInstrument(), correlating))),
+    ?assert(2 == length(reeng:compose(examples:userAgent(), examples:agentInstrument(), correlating))),
     ?assert(0 == length(reeng:compose(examples:auth_two_step(), examples:email(), correlating)))
     .
 
 reeng_compose_all() ->
     ?assert(1 == length(reeng:compose(examples:login(), examples:service(), all))),
-    ?assert(2 == length(reeng:compose(examples:s1(), examples:s2(), all))),
+    ?assert(3 == length(reeng:compose(examples:s1(), examples:s2(), all))),
     ?assert(1 == length(reeng:compose(examples:i1(), examples:i2(), all))),
     % ?assert(6 == length(reeng:compose(examples:http(), examples:aws_auth(), all))),
     ?assert(1 == length(reeng:compose(examples:login(), examples:booking(), all))),
     ?assert(1 == length(reeng:compose(examples:pin(), examples:tan(), all))),
     ?assert(1 == length(reeng:compose(examples:pintan(), examples:bank(), all))),
     ?assert(2 == length(reeng:compose(examples:resource(), examples:server(), all))),
-    ?assert(1 == length(reeng:compose(examples:userAgent(), examples:agentInstrument(), all))),
+    ?assert(2 == length(reeng:compose(examples:userAgent(), examples:agentInstrument(), all))),
     ?assert(9 == length(reeng:compose(examples:auth_two_step(), examples:email(), all)))
     .
 
