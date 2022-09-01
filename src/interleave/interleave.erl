@@ -384,7 +384,7 @@ asserted(A, {consume, N, P}) ->
 asserted(A, {assert, N, P}) ->
   case lists:member(N, A) of
     true -> asserted(A, P);
-    false -> asserted([N|A], P)
+    false -> asserted([N], P)
   end;
 asserted(A, {rec, _, P}) ->
   case asserted(A, P) of
