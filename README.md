@@ -15,8 +15,8 @@ examples together with the algorithm for protocol composition.
 ### Prerequisites
 The following software needs to be installed:
 
-- Erlang
-- rebar3
+- Erlang: Erlang/OTP 24 Erts 12.2.1
+- rebar3: rebar 3.17.0
 
 
 ### Building
@@ -49,7 +49,7 @@ All:
 
 For example:
 
-    interleave:interleaveWeak(examples:pin(), examples:tan().
+    interleave:interleaveWeak(examples:pin(), examples:tan()).
 
 Code Generation:
 
@@ -85,3 +85,5 @@ Results presented in Table 1 should be obtained on any machine.
 To obtain Table 1 from the paper run:
 
 		examples:table().
+
+The examples can be found under src/examples/

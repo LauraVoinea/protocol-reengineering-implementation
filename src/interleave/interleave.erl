@@ -538,6 +538,10 @@ interleaveMain(WeakFlag, TL, TR, A, {act, P, S1}, S2) ->
 
 %% [require] rule
 interleaveMain(WeakFlag, TL, TR, A, {require, N, S1}, S2) ->
+  % io:format("S1 ~p~n", [S1]),
+  % io:format("S2 ~p~n", [S2]),
+  % io:format("N ~p~n", [lists:member(N, A)]),
+
   case lists:member(N, A) of
     true ->
       % Induct
@@ -715,9 +719,9 @@ intCorrelating(WeakFlag, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
                             false -> {branch, Branches}
                           end
              end),
-%  io:format("Results 1 ~p~n", [Results]),
 %remove empty list
 filter_empty(Results).
+
 
 % Factorization - ongoing work
 %[Fprex1]

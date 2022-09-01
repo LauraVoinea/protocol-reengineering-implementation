@@ -192,14 +192,12 @@ email() -> {rec, "menu", {require, auth, {branch, [{read, {act, read, {rvar, "me
                                                    {exit, {consume, auth, endP}}]}}}.
 
 
-%% examples from 3.1.3
-r3_1() ->  {act, r_pwd, {assert, login, 
+%% examples from 4.4
+sa() ->  {act, r_pwd, {assert, login, 
                             {rec, "t1", {branch, [{void, {rvar, "t1"}},
                                                   {quit, {act, quit, {assert, n, {consume, login, endP}}}}]}}}}.
-r31() -> 
-{rec, "t1",  {act, r_pwd, {assert, login, {branch, [{void, {rvar, "t1"}},
-                      {quit, {act, quit, {assert, n, {consume, login, endP}}}}]}}}}.
-r3_2() ->  {rec, "t", {branch, [
+
+sb() ->  {rec, "t", {branch, [
                     {balance, {require, login, {act, bal, {rvar, "t"}}}},
                     {logout, {consume, n, endP}}
                     ]
@@ -259,7 +257,8 @@ table() ->
                {resource(), server()},
                {userAgent(), agentInstrument()},
                {bankauthsimple(), keycard()},
-               {auth_two_step(), email()}],
+               {auth_two_step(), email()},
+               {sa(), sb()}],
   PNames = [{login, service},
                {s1, s2},
                {i1, i2},
@@ -270,7 +269,9 @@ table() ->
                {resource, server},
                {userAgent, agentInstrument},
                {bankauthsimple, keycard},
-               {auth_two_step, email}],
+               {auth_two_step, email},
+               {sa, sb}],
+               
   Strong = lists:map(fun({P1, P2}) -> length(interleave:interleave(P1, P2)) end, Protocols),
   Weak = lists:map(fun({P1, P2}) -> length(interleave:interleaveWeak(P1, P2)) end, Protocols),
   Correlating = lists:map(fun({P1, P2}) -> length(interleave:interleaveCorrelating(P1, P2)) end, Protocols),

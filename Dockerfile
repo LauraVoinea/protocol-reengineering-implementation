@@ -2,26 +2,24 @@
 FROM erlang:alpine
 
 # Set working directory
-RUN mkdir /buildroot
-WORKDIR /buildroot
+WORKDIR /root
+RUN pwd
+RUN mkdir /root/buildroot
+WORKDIR /root/buildroot
 
 #Copy src, include folders and rebar.config
-COPY src src/
-COPY include include/
+COPY src/ src/
+COPY include/ include/
 COPY rebar.config .
 
-#Build the release
-RUN rebar3 release
-
-
-FROM alpine
+RUN pwd
+RUN ls -la
 
 RUN apk add --no-cache openssl && \
     apk add --no-cache ncurses-libs && \
      apk add --no-cache libstdc++ && \
       apk add --no-cache libgcc
 
-# Install the released application
-COPY --from=0 buildroot/_build/default/rel/reengineering /reengineering
-
-CMD ["/reengineering/bin/reengineering", "foreground"]
+RUN apk update && apk add bash
+CMD /bin/bash  
+# CMD rebar3 shell
