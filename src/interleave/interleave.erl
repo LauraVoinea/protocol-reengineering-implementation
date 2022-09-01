@@ -269,18 +269,15 @@ badJCombo1(A) ->
 
 % Returns true if a bad combo i.e., there is an element in I that is not in any branch Ji
 badJCombo2(A, Indices) ->
-  F = fun({_,{branch, [Js]}}) -> Js end,
+  F = fun({_,{branch, Js}}) -> Js end,
   Bras = lists:map(F, A),
   F1 = fun({Label, _}) -> Label end,
-  Labels = lists:map(F1, Bras),
+  Labels = lists:map(F1, lists:flatten(Bras)),
 
-  case Labels =:= Indices of
+  case lists:usort(Labels) =:= lists:usort(Indices) of
     true -> false;
     _ -> true
   end.
-
-
-
 
 
 com1() -> {branch, [{a, {consume, a, endP}}, {b, {consume, b, endP}}, {c, endP} ] }.
@@ -444,7 +441,10 @@ nub([X|Xs], Clean) ->
         false -> nub(Xs, [X|Clean])
     end.
 
-
+%% @doc Remove empty list elements from a list
+filter_empty(Data) when is_list(Data) ->
+  Pred = fun(Element) -> Element /= [] end,
+  lists:filter(Pred, Data). 
 
 
 
@@ -453,11 +453,6 @@ nub([X|Xs], Clean) ->
 twoCovering([])  -> [];
 twoCovering([A]) -> [{[A], []}, {[], [A]}];
 twoCovering([A|AS]) -> bind(twoCovering(AS), fun({XS, YS}) -> [{[A|XS], YS}, {XS, [A|YS]}] end).
-
-
-%reverse a list
-reverse([]) -> [];
-reverse([H | T]) -> reverse(T) ++ [H].
 
 
 %finds if there are used variables in recursion environment
@@ -470,14 +465,14 @@ reverse([H | T]) -> reverse(T) ++ [H].
  subUsedW([]) -> [];
  subUsedW([{_,false}|T]) ->  subUsedW(T);
  subUsedW(X) -> X.
- subUsed(L) -> reverse(subUsedW(reverse(L))).
+ subUsed(L) -> lists:reverse(subUsedW(lists:reverse(L))).
 
 
 -spec subUnusedW([{string(),boolean()}])  -> [{string(),boolean()}].
 subUnusedW([]) -> [];
-subUnusedW([{T,false}|L]) -> [{T,false}] ++ subUnusedW(L);
+subUnusedW([{T,false}|L]) -> [{T,false}|subUnusedW(L)];
 subUnusedW([{_,true}|_]) -> [].
-subUnused(L) -> reverse(subUnusedW(reverse(L))).
+subUnused(L) -> lists:reverse(subUnusedW(lists:reverse(L))).
 
 
 %% @doc Take the largest list in a list of lists
@@ -538,7 +533,9 @@ interleaveTop(WeakFlag, TL, TR, A, S1, S2) ->
 interleaveMain(_, _, _, _, endP, endP) -> [endP];
 %% [act] rule
 interleaveMain(WeakFlag, TL, TR, A, {act, P, S1}, S2) ->
-  for(interleaveTop(WeakFlag, TL, TR, A, S1, S2), fun(S) -> {act, P, S} end);
+  LS = interleaveTop(WeakFlag, TL, TR, A, S1, S2),
+  lists:map(fun(S) -> {act, P, S} end, LS);
+
 %% [require] rule
 interleaveMain(WeakFlag, TL, TR, A, {require, N, S1}, S2) ->
   case lists:member(N, A) of
@@ -664,10 +661,9 @@ intStrong(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
   end),
   lists:concat(Possibilities).
 
-
   %% [wbra]
 intWeak(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
-  Covering = lists:droplast(twoCovering(LiSi)),
+  Covering = twoCovering(LiSi),
   Possibilities = for(Covering,
     fun ({Ia, Ib}) ->
     % Good parition if all Sb are well asserted
@@ -693,33 +689,35 @@ intWeak(WeakFlag, TL, TR, A, {branch, LiSi}, S2) ->
 intCorrelating(WeakFlag, TL, TR, A, {branch, LiSi1}, {branch, LiSi2}) ->
   I = for(LiSi2, fun({Li, _}) -> Li end),
   RightSubsets = jBranch(LiSi2),
+
   % Meat
   LeftAndRightSubsetCombos =
      % For each {li : Si}
-     for(LiSi1, fun ({Li, Si}) ->
+     for(LiSi1, fun({Li, Si}) ->
         % For each subset of the {lj , Sj} branches
-        for(RightSubsets, fun (Subset) ->
+        lists:foldl(fun(Subset, X) ->
           % associate with Li a branch...
-          {Li, {branch,
-                 %... all the possibile unique {lj, Sj} pairs where Si and Sj compose
-                 nub([{Lj, S} || {Lj, Sj} <- Subset, S <- interleaveMain(WeakFlag, TL, TR, A, Si, Sj)])}}
-        end)
+          %... all the possibile unique {lj, Sj} pairs where Si and Sj compose
+        Br = nub([{Lj, S} || {Lj, Sj} <- Subset, S <- interleaveTop(WeakFlag, TL, TR, A, Si, Sj)]),
+        % skip empty lists 
+        case Br of 
+          [] -> X;
+          _ -> [{Li, {branch, Br}} | X]
+        end  
+        end, [], RightSubsets)
       end),
+
   % Now choose all combiations across branches
   Results = for((nCartesian(LeftAndRightSubsetCombos)), fun (Branches) ->
-              % check that inner branching is non empty for all Li (in the paper Ji =\= 0 )
-              case badJCombo1(Branches) of
-                true -> [];
                 % check all branches of J are covered in the I branches overall (in the paper U_{j\in J} = J)
-                false ->  case badJCombo2(Branches, I) of
+                 case badJCombo2(Branches, I) of
                             true -> [];
                             false -> {branch, Branches}
                           end
-              end
- end),
+             end),
+%  io:format("Results 1 ~p~n", [Results]),
 %remove empty list
-lists:filter(fun(X) -> X /= [] end, Results).
-
+filter_empty(Results).
 
 % Factorization - ongoing work
 %[Fprex1]

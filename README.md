@@ -1,5 +1,9 @@
 Protocol re-engineering artifact
 
+GitHub  https://github.com/LauraVoinea/protocol-reengineering-implementation
+
+Commit Hash: 57a3d55ee0a236ea578bd182be007427fe950747
+
 ## 1. Getting started guide
 
 This is a tool for composing protocols, generating state machines based on
@@ -50,20 +54,20 @@ For example:
 Code Generation:
 
 
-    generate:gen(FileName, Protocol).
+    generate:gen(Protocol, FileName).
 
 For example:
 
-    generate:gen(pin, examples:pin()).
+    generate:gen(examples:pin(),"pin.erl").
 
 
 Protocol Extraction:
 
-    extract:protocol(FileName, Path).
+    extract:protocol(FileName).
 
 For example:
 
-    extract:protocol("pin.erl", ".").
+    extract:protocol("pin.erl").
 
 To obtain Table 1 from the paper run:
 
